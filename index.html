@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f7d4f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Einkauf</title>
+<style>
+:root{--bg:#f4f6f4;--card:#fff;--tx:#1b221e;--mu:#6a766f;--ac:#2f7d4f;--ac2:#e3f1e9;--bd:#e0e5e1;--warn:#c76a00;--dng:#c0392b}
+@media(prefers-color-scheme:dark){:root{--bg:#111513;--card:#1a1f1c;--tx:#e8ece9;--mu:#8d9992;--ac:#4cb37b;--ac2:#1e3a2b;--bd:#2b322e;--warn:#e69a3a;--dng:#e0655a}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:10;background:var(--ac);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;font-weight:600}
+.hr{display:flex;gap:10px;align-items:center;font-size:13px;font-weight:400}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid #fff;background:#9aa;padding:0}
+.dot.ok{background:#7CFC9A}.dot.sync{background:#ffd54a}.dot.err{background:#ff6b5e}.dot.off{background:transparent}
+main{max-width:720px;margin:0 auto;padding:10px 12px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bd);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav button{flex:1;border:0;background:none;color:var(--mu);font-size:11px;padding:7px 0 6px;position:relative}
+nav button span{display:block;font-size:20px;line-height:1.1}
+nav button.on{color:var(--ac);font-weight:700}
+.bdg{position:absolute;top:5px;right:calc(50% - 20px);width:10px;height:10px;border-radius:50%;background:var(--dng)}
+.ban{margin:8px 12px 0;padding:10px 12px;border-radius:12px;background:var(--ac2);color:var(--tx);border:1px solid var(--ac);max-width:720px;margin-inline:auto}
+button{font:inherit;color:inherit;cursor:pointer}
+.bar{display:flex;gap:8px;align-items:center;margin:4px 0 8px}
+.bar select,.srch,select.u,.q{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+.bar select,.bar .srch{flex:1;min-width:0}
+.srch{width:100%}
+textarea.srch{resize:vertical}
+.ttl{flex:1}
+.ib{border:1px solid var(--bd);background:var(--card);border-radius:10px;padding:8px 11px;min-width:40px}
+.addbar{width:100%;text-align:left;border:1px dashed var(--ac);background:var(--ac2);color:var(--ac);border-radius:12px;padding:12px;font-weight:600;margin-bottom:8px}
+.chips{display:flex;gap:6px;overflow:auto;margin-bottom:6px}
+.chip{border:1px solid var(--bd);background:var(--card);border-radius:20px;padding:5px 12px;white-space:nowrap;font-size:14px}
+.chip.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.cat{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);font-weight:700;margin:14px 4px 4px}
+.it{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px 10px;margin-bottom:5px}
+.cb{width:28px;height:28px;border-radius:50%;border:2px solid var(--mu);flex:none;display:flex;align-items:center;justify-content:center;color:transparent;font-weight:700}
+.it.done .cb{background:var(--ac);border-color:var(--ac);color:#fff}
+.it.done .nm{text-decoration:line-through;color:var(--mu)}
+.nm{flex:1;min-width:0;overflow-wrap:anywhere}
+.nm small,.card small,.prow small{color:var(--mu);display:block;font-size:12px}
+.lad{display:inline-block;background:var(--ac2);color:var(--ac);border-radius:8px;padding:0 7px;margin-top:2px}
+.qty{display:flex;align-items:center;gap:4px;flex:none}
+.qty button{width:34px;height:34px;border-radius:50%;border:1px solid var(--bd);background:var(--bg);font-size:18px;padding:0}
+.qty span{min-width:48px;text-align:center;font-size:14px;font-variant-numeric:tabular-nums}
+.empty{text-align:center;color:var(--mu);padding:36px 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:8px}
+.card b{display:block}
+.ph,.srow,.krow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ph{margin-bottom:6px}.srow{padding:6px 0;border-top:1px solid var(--bd)}
+.krow{padding:6px 0;border-bottom:1px solid var(--bd)}.krow span{flex:1}
+.fab{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:var(--ac);color:#fff;border:0;font-size:28px;box-shadow:0 3px 10px #0004;z-index:9}
+.lnk{background:none;border:0;color:var(--ac);padding:10px 4px;font-weight:600}
+.btn{display:block;width:100%;border:0;background:var(--ac);color:#fff;border-radius:12px;padding:13px;font-weight:600;margin-top:10px}
+.btn.sec{background:var(--ac2);color:var(--ac)}.btn.dng{background:transparent;color:var(--dng);border:1px solid var(--dng)}
+.ov{position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sh{background:var(--card);width:100%;max-width:720px;max-height:92vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column}
+.shh{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--bd)}
+.shb{overflow:auto;padding:12px 14px calc(16px + env(safe-area-inset-bottom))}
+.lb{display:block;font-size:13px;color:var(--mu);margin:12px 0 4px}
+.mu{color:var(--mu);font-size:14px}
+.prow{padding:12px 6px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.prow.new{color:var(--ac);font-weight:600}
+.erow{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.zbtn{flex:1;min-width:0;text-align:left;border:1px solid var(--bd);background:var(--card);border-radius:10px;padding:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zbtn.new{border-color:var(--warn);color:var(--warn)}
+.erow .q{width:68px;padding:10px 6px}.erow select.u{width:84px;padding:10px 4px}
+.row{display:flex;gap:8px;align-items:center}
+.opt{display:flex;gap:12px;align-items:center;width:100%;text-align:left;border:1px solid var(--bd);background:var(--bg);border-radius:12px;padding:14px;margin-bottom:8px}
+.opt span{font-size:24px}
+.chk{display:flex;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--bd)}
+.chk input{width:22px;height:22px;accent-color:var(--ac)}
+.note{background:var(--ac2);border-radius:12px;padding:12px;margin-bottom:10px}
+.spin{width:36px;height:36px;border:4px solid var(--bd);border-top-color:var(--ac);border-radius:50%;margin:10px auto;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom));z-index:80;display:flex;flex-direction:column;gap:6px;align-items:center;width:calc(100% - 24px);max-width:460px;pointer-events:none}
+.tt{background:#222;color:#fff;border-radius:12px;padding:10px 14px;pointer-events:auto;display:flex;gap:14px;align-items:center;box-shadow:0 3px 12px #0005}
+.tt button{background:none;border:0;color:#7CFC9A;font-weight:700}
+.ver{border-left:3px solid var(--ac);padding-left:10px;margin:10px 0}
+.ver ul{margin:4px 0 0;padding-left:18px}
+.seg{display:flex;gap:0;margin-bottom:8px}.seg button{flex:1;border:1px solid var(--bd);background:var(--card);padding:9px}
+.seg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="sheets"></div>
+<div id="toast"></div>
+<script>
+'use strict';
+/* =====================  Version & Verlauf  ===================== */
+const VERSION='1.0.0';
+const CHANGELOG=[
+ {v:'1.0.0',d:'26.10.2026',t:[
+  'Erste Version der Einkaufslisten-App',
+  'Gemeinsame Einkaufslisten mit Abhaken, Kategorien, Läden und Mengen-Stepper',
+  'Mehrere Listen, Favoriten (je Einkauf und Drogerie), eigener Drogerie-Tab',
+  'Rezeptkatalog: manuell, per Foto oder per Link, mit Zutaten-Auswahl (Suche, neu anlegen) und Portionen-Umrechnung',
+  'Gleiche Zutaten aus mehreren Rezepten werden addiert',
+  'Wochenplanung zwischen zwei Nutzern (Vorschläge → Auswahl → Einkaufsliste → Rückmeldung)',
+  'Lieblingssnacks der Freunde, Name erscheint in Klammern auf der Liste',
+  'Synchronisation der Daten über Dropbox, Offline-Nutzung möglich'
+ ]}
+];
+
+/* =====================  Helfer  ===================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
+const now=()=>Date.now();
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9äöüß]+/g,'-').replace(/^-|-$/g,'');
+const byName=(a,b)=>a.name.localeCompare(b.name,'de');
+const byTitel=(a,b)=>a.titel.localeCompare(b.titel,'de');
+const live=a=>(a||[]).filter(x=>!x.d);
+
+/* =====================  Stammdaten  ===================== */
+const UNITS=['Stück','g','kg','ml','l','EL','TL','Prise','Bund','Dose','Packung','Zehe','Scheibe'];
+const KAT_MARKT=['Obst & Gemüse','Brot & Backwaren','Milch & Käse','Fleisch & Fisch','Tiefkühl','Konserven & Fertiges','Nudeln, Reis & Getreide','Backen','Gewürze, Öle & Soßen','Getränke','Süßes & Snacks','Haushalt','Sonstiges'];
+const KAT_DROG=['Körperpflege','Haarpflege','Zahnpflege','Papier & Hygiene','Waschen & Putzen','Gesundheit','Baby','Sonstiges'];
+const SEED_MARKT={
+ 'Obst & Gemüse':'Paprika (gelb),Paprika (rot),Paprika (grün),Tomaten,Gurke,Zwiebeln,Knoblauch,Kartoffeln:g,Karotten,Zucchini,Brokkoli,Blumenkohl,Spinat:g,Salat,Champignons:g,Lauch,Sellerie,Aubergine,Kürbis,Äpfel,Bananen,Zitronen,Limetten,Orangen,Avocado,Erdbeeren:g,Trauben:g,Ingwer,Petersilie:Bund,Schnittlauch:Bund,Basilikum:Bund,Koriander:Bund,Frühlingszwiebeln:Bund,Rucola:g',
+ 'Brot & Backwaren':'Brot,Brötchen,Toast,Tortillas,Baguette',
+ 'Milch & Käse':'Milch:ml,Sahne:ml,Butter:g,Joghurt:g,Quark:g,Eier,Mozzarella:g,Parmesan:g,Gouda:g,Feta:g,Frischkäse:g,Schmand:g,Crème fraîche:g,Reibekäse:g',
+ 'Fleisch & Fisch':'Hähnchenbrust:g,Hackfleisch:g,Schinken:g,Speck:g,Würstchen,Lachs:g,Garnelen:g,Salami',
+ 'Tiefkühl':'TK-Spinat:g,TK-Erbsen:g,TK-Pizza,Eis',
+ 'Konserven & Fertiges':'Tomaten (Dose):Dose,Passierte Tomaten:Packung,Kidneybohnen:Dose,Kichererbsen:Dose,Mais (Dose):Dose,Kokosmilch:Dose,Tomatenmark:EL,Gemüsebrühe:TL',
+ 'Nudeln, Reis & Getreide':'Spaghetti:g,Nudeln:g,Reis:g,Haferflocken:g,Couscous:g,Linsen:g',
+ 'Backen':'Mehl:g,Zucker:g,Backpulver:Packung,Vanillezucker:Packung,Hefe:Packung,Speisestärke:g,Backschokolade:g',
+ 'Gewürze, Öle & Soßen':'Salz:TL,Pfeffer:TL,Paprikapulver:TL,Curry:TL,Oregano:TL,Zimt:TL,Olivenöl:EL,Rapsöl:EL,Essig:EL,Senf:TL,Ketchup,Mayonnaise,Honig:EL,Sojasauce:EL',
+ 'Getränke':'Wasser:l,Saft:l,Cola,Bier,Wein,Kaffee,Tee',
+ 'Süßes & Snacks':'Chips,Schokolade,Gummibärchen,Kekse,Nüsse',
+ 'Haushalt':'Küchenrolle,Müllbeutel,Spülmittel,Alufolie,Backpapier,Servietten'
+};
+const SEED_DROG={
+ 'Zahnpflege':'Zahnpasta,Zahnbürste,Zahnseide,Mundspülung',
+ 'Haarpflege':'Shampoo,Haarspülung,Haargel',
+ 'Körperpflege':'Duschgel,Seife,Deo,Bodylotion,Handcreme,Rasierklingen',
+ 'Papier & Hygiene':'Toilettenpapier,Taschentücher,Tampons,Binden,Wattepads',
+ 'Waschen & Putzen':'Waschmittel,Weichspüler,Spülmaschinentabs,Allzweckreiniger,WC-Reiniger',
+ 'Gesundheit':'Pflaster,Sonnencreme,Kopfschmerztabletten'
+};
+function freshDB(){
+ const db={v:1,zutaten:[],rezepte:[],listen:[{id:'l_markt',name:'Einkaufsliste',typ:'markt',u:1},{id:'l_drogerie',name:'Drogerie',typ:'drogerie',u:1}],items:[],favoriten:[],snacks:[],nutzer:[],wochenplan:{id:'wp',status:'leer',u:0},katOrder:{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1}};
+ for(const [typ,seed] of [['markt',SEED_MARKT],['drogerie',SEED_DROG]])for(const k in seed)for(const s of seed[k].split(',')){const [n,eh]=s.split(':');db.zutaten.push({id:'s_'+slug(n),name:n,kat:k,eh:eh||'Stück',laden:'',alias:[],typ,u:1})}
+ return db}
+
+/* =====================  Zustand  ===================== */
+let DB=LS.get('einkauf_db',null)||freshDB();
+for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer'])DB[k]=DB[k]||[];
+DB.wochenplan=DB.wochenplan||{id:'wp',status:'leer',u:0};
+DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
+let ME=LS.get('me','');
+let view=LS.get('view','liste');
+const FLT={};let RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WTO='',WPICK=null,WPICKU=0,WTARGET='new';
+let IDX={},ZKEY=new Map();
+function rebuild(){IDX={};ZKEY=new Map();for(const z of DB.zutaten)IDX[z.id]=z;for(const z of DB.zutaten){if(z.d)continue;ZKEY.set(keyOf(z.name),z);for(const a of z.alias||[]){const k=keyOf(a);if(k&&!ZKEY.has(k))ZKEY.set(k,z)}}}
+const Z=id=>IDX[id];
+const item=id=>DB.items.find(i=>i.id===id);
+const Rz=id=>DB.rezepte.find(r=>r.id===id);
+
+/* ---- Namens-Normalisierung: "Paprika, gelb" == "gelbe Paprika" ---- */
+const stem=w=>{w=w.toLowerCase();for(const e of ['en','er','es','e','n','s']){if(w.length>e.length+2&&w.endsWith(e))return w.slice(0,-e.length)}return w};
+const toks=s=>String(s).toLowerCase().replace(/[(),;:\/]+/g,' ').split(/\s+/).filter(Boolean);
+const keyOf=s=>toks(s).map(stem).sort().join(' ');
+function findZutat(name){if(!name)return null;const n=String(name).trim();return ZKEY.get(keyOf(n))||ZKEY.get(keyOf(n.replace(/\(.*?\)/g,'')))||ZKEY.get(keyOf(n.split(',')[0]))||null}
+function searchZutaten(q,typ){
+ const qt=toks(q).map(stem);const list=live(DB.zutaten).filter(z=>!typ||z.typ===typ);
+ if(!qt.length)return list.sort(byName).slice(0,80);
+ const res=[];
+ for(const z of list){let best=0;for(const h of [z.name,...(z.alias||[])].map(s=>toks(s).map(stem))){if(qt.every(t=>h.some(w=>w.includes(t)))){best=Math.max(best,qt.every(t=>h.some(w=>w.startsWith(t)))?2:1)}}if(best)res.push([best,z])}
+ res.sort((a,b)=>b[0]-a[0]||a[1].name.localeCompare(b[1].name,'de'));return res.map(r=>r[1]).slice(0,80)}
+
+/* ---- Mengen ---- */
+const fam=u=>u==='kg'?'g':u==='l'?'ml':(u||'');
+const toBase=(m,u)=>(u==='kg'||u==='l')?m*1000:m;
+const fmtNum=n=>(Math.round(n*100)/100).toString().replace('.',',');
+function fmtQty(m,u){if(m==null||m==='')return'';let unit=u||'';if(unit==='g'&&m>=1000){m/=1000;unit='kg'}else if(unit==='ml'&&m>=1000){m/=1000;unit='l'}
+ const n=fmtNum(m);return unit==='Stück'?n+'×':unit?n+' '+unit:n}
+const stepOf=(m,u)=>(u==='g'||u==='ml')?(m>500?100:50):1;
+const defQty=u=>(u==='g'||u==='ml')?500:1;
+function parseNum(s){if(s==null||s==='')return null;if(typeof s==='number')return s;s=String(s).replace(/½/g,' 1/2').replace(/¼/g,' 1/4').replace(/¾/g,' 3/4').replace(',','.').trim();let t=0,ok=false;for(const p of s.split(/\s+/)){if(/^\d+\/\d+$/.test(p)){const [a,b]=p.split('/');t+=a/b;ok=true}else if(/^\d*\.?\d+$/.test(p)){t+=parseFloat(p);ok=true}else return null}return ok?t:null}
+const unitOpts=sel=>['',...UNITS].map(u=>`<option value="${u}" ${u===(sel||'')?'selected':''}>${u||'–'}</option>`).join('');
+
+/* ---- Listen-Helfer ---- */
+const lists=typ=>live(DB.listen).filter(l=>l.typ===typ);
+function actList(typ){let ls=lists(typ);if(!ls.length){DB.listen.push({id:uid(),name:typ==='markt'?'Einkaufsliste':'Drogerie',typ,u:now()});ls=lists(typ);persist(true)}const id=LS.get('act_'+typ);return ls.find(l=>l.id===id)||ls[0]}
+const catsOf=typ=>{const base=DB.katOrder[typ]||[];const used=[];for(const z of live(DB.zutaten))if(z.typ===typ&&!base.includes(z.kat)&&!used.includes(z.kat))used.push(z.kat);return [...base,...used]};
+const ikat=i=>(Z(i.zid)&&Z(i.zid).kat)||i.kat||'Sonstiges';
+const iladen=i=>i.laden!=null?i.laden:((Z(i.zid)&&Z(i.zid).laden)||'');
+const iname=i=>i.name+(i.fuer?` (${i.fuer})`:'');
+
+function addItem(lid,e){
+ const unit=fam(e.einheit||'');const m=(e.menge==null||e.menge==='')?null:toBase(+e.menge,e.einheit||'');
+ const ex=DB.items.find(i=>!i.d&&i.lid===lid&&!i.done&&(e.zid?i.zid===e.zid:(!i.zid&&keyOf(i.name)===keyOf(e.name)))&&(i.fuer||'')===(e.fuer||'')&&((i.einheit||'')===unit||i.menge==null||m==null));
+ if(ex){if(m!=null){if(ex.menge==null){ex.menge=m;ex.einheit=unit}else ex.menge+=m}ex.u=now();return ex}
+ const z=e.zid?Z(e.zid):null;
+ const it={id:uid(),lid,zid:e.zid||null,name:z?z.name:e.name,menge:m,einheit:unit,fuer:e.fuer||'',done:false,u:now()};
+ DB.items.push(it);return it}
+
+/* =====================  Merge & Sync  ===================== */
+function mergeArr(a=[],b=[],f){const la=new Map(a.map(x=>[x.id,x])),m=new Map();
+ for(const y of b){const x=la.get(y.id);if(!x){m.set(y.id,y);f.down=1}else if((x.u||0)>(y.u||0)){m.set(y.id,x);f.up=1}else{m.set(y.id,y);if((x.u||0)<(y.u||0))f.down=1}}
+ for(const x of a)if(!m.has(x.id)){m.set(x.id,x);f.up=1}
+ return [...m.values()]}
+const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer'];
+function mergeDB(l,r){const f={up:0,down:0};const o={...r};for(const k of ARR)o[k]=mergeArr(l[k],r[k],f);
+ for(const k of ['wochenplan','katOrder']){const a=l[k],b=r[k];if(!b){o[k]=a;f.up=1}else if(!a){o[k]=b;f.down=1}else if((a.u||0)>(b.u||0)){o[k]=a;f.up=1}else{o[k]=b;if((a.u||0)<(b.u||0))f.down=1}}
+ return {db:o,up:f.up,down:f.down}}
+function purge(db){const cut=now()-30*864e5;const o={...db};for(const k of ARR)o[k]=db[k].filter(x=>!(x.d&&(x.u||0)<cut));return o}
+
+const asciiJson=o=>JSON.stringify(o).replace(/[\u007f-\uffff]/g,c=>'\\u'+('0000'+c.charCodeAt(0).toString(16)).slice(-4));
+const REDIRECT=location.origin+location.pathname.replace(/index\.html$/,'');
+const DBX={
+ key:()=>LS.get('dbx_key',''),path:()=>LS.get('dbx_path','/Einkauf/einkauf.json'),
+ ready:()=>!!(LS.get('dbx_key','')&&LS.get('dbx_tok',null))
+};
+const b64url=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+async function dbxConnect(){
+ const key=DBX.key().trim();if(!key)throw new Error('Bitte zuerst den Dropbox App-Key eintragen.');
+ const ver=b64url(crypto.getRandomValues(new Uint8Array(48)));LS.set('dbx_ver',ver);
+ const ch=b64url(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ver)));
+ location.href=`https://www.dropbox.com/oauth2/authorize?client_id=${encodeURIComponent(key)}&response_type=code&code_challenge=${ch}&code_challenge_method=S256&token_access_type=offline&redirect_uri=${encodeURIComponent(REDIRECT)}`}
+async function dbxExchange(code){
+ const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,grant_type:'authorization_code',client_id:DBX.key().trim(),code_verifier:LS.get('dbx_ver',''),redirect_uri:REDIRECT})});
+ const j=await r.json();if(!r.ok)throw new Error('Dropbox-Anmeldung fehlgeschlagen: '+(j.error_description||j.error||r.status));
+ LS.set('dbx_tok',{access:j.access_token,refresh:j.refresh_token,exp:now()+j.expires_in*1000})}
+async function dbxToken(){
+ let t=LS.get('dbx_tok',null);if(!t)throw new Error('Nicht mit Dropbox verbunden');if(t.exp>now()+60000)return t.access;
+ const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:t.refresh,client_id:DBX.key().trim()})});
+ const j=await r.json();if(!r.ok){if(j.error==='invalid_grant')LS.set('dbx_tok',null);throw new Error('Dropbox-Anmeldung abgelaufen – bitte neu verbinden')}
+ t={access:j.access_token,refresh:t.refresh,exp:now()+j.expires_in*1000};LS.set('dbx_tok',t);return t.access}
+async function dbxMeta(){
+ const r=await fetch('https://api.dropboxapi.com/2/files/get_metadata',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Content-Type':'application/json'},body:JSON.stringify({path:DBX.path()})});
+ if(r.status===409)return null;if(!r.ok)throw new Error('Dropbox '+r.status);return r.json()}
+async function dbxDownload(){
+ const r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Dropbox-API-Arg':asciiJson({path:DBX.path()})}});
+ if(r.status===409){const t=await r.text();if(t.includes('not_found'))return null;throw new Error('Dropbox: '+t.slice(0,120))}
+ if(!r.ok)throw new Error('Dropbox '+r.status);
+ const meta=JSON.parse(r.headers.get('dropbox-api-result')||'{}');return {data:JSON.parse(await r.text()),rev:meta.rev}}
+async function dbxUpload(data,rev){
+ const mode=rev?{'.tag':'update',update:rev}:{'.tag':'add'};
+ const r=await fetch('https://content.dropboxapi.com/2/files/upload',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Content-Type':'application/octet-stream','Dropbox-API-Arg':asciiJson({path:DBX.path(),mode,autorename:false,mute:true})},body:JSON.stringify(data)});
+ if(r.status===409)return {conflict:true};
+ if(!r.ok){const t=await r.text();throw new Error('Dropbox-Upload: '+(r.status===400?t.slice(0,120):r.status))}
+ return {rev:(await r.json()).rev}}
+
+let syncing=false,syncAgain=false,SS=DBX.ready()?'ok':'off',SERR='',syncRev=LS.get('sync_rev',null),syncTimer=null,lastSync=LS.get('last_sync',0);
+function setStatus(s,err){SS=s;SERR=err||'';const d=$('#sdot');if(d){d.className='dot '+s;d.title=err||''}}
+function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(()=>sync(),900)}
+async function sync(force){
+ if(!DBX.ready()){setStatus('off');return}
+ if(syncing){syncAgain=true;return}
+ syncing=true;setStatus('sync');
+ try{
+  for(let n=0;n<3;n++){
+   if(!force&&!LS.get('dirty',0)){const m=await dbxMeta();if(m&&m.rev===syncRev)break}
+   const rem=await dbxDownload();
+   if(!rem){const up=await dbxUpload(purge(DB),null);if(up.conflict)continue;syncRev=up.rev;LS.set('dirty',0);break}
+   const g=mergeDB(DB,rem.data);DB=g.db;
+   if(g.up){const up=await dbxUpload(purge(DB),rem.rev);if(up.conflict)continue;syncRev=up.rev}else syncRev=rem.rev;
+   LS.set('dirty',0);LS.set('einkauf_db',DB);rebuild();if(g.down||g.up)render();break}
+  LS.set('sync_rev',syncRev);lastSync=now();LS.set('last_sync',lastSync);setStatus('ok')
+ }catch(e){setStatus('err',e.message||String(e))}
+ finally{syncing=false;if(syncAgain){syncAgain=false;scheduleSync()}}}
+
+function persist(quiet){LS.set('einkauf_db',DB);LS.set('dirty',1);rebuild();if(!quiet)render();scheduleSync()}
+
+/* =====================  UI-Grundlagen  ===================== */
+const A={},IN={};
+function sheet(title,body,o={}){const el=document.createElement('div');el.className='ov';if(o.noclose)el.dataset.nc='1';
+ el.innerHTML=`<div class="sh"><div class="shh"><b>${esc(title)}</b>${o.noclose?'':'<button class="ib" data-a="close">✕</button>'}</div><div class="shb">${body}</div></div>`;
+ $('#sheets').appendChild(el);return el}
+function closeSheet(el){(el||$('#sheets').lastElementChild)?.remove()}
+function busy(msg){const el=sheet('Bitte warten',`<div class="spin"></div><p style="text-align:center">${esc(msg)}</p>`,{noclose:true});return()=>closeSheet(el)}
+function toast(msg,undo){const t=document.createElement('div');t.className='tt';t.innerHTML=`<span>${esc(msg)}</span>`;
+ if(undo){const b=document.createElement('button');b.textContent='Rückgängig';b.onclick=()=>{undo();t.remove()};t.appendChild(b)}
+ $('#toast').appendChild(t);setTimeout(()=>t.remove(),undo?6000:3000)}
+function ask(title,val,cb,ph){const el=sheet(title,`<input class="srch" value="${esc(val)}" placeholder="${esc(ph||'')}"><button class="btn">OK</button>`);const i=el.querySelector('input');
+ const go=()=>{const v=i.value.trim();if(!v)return;closeSheet(el);cb(v)};el.querySelector('.btn').onclick=go;i.onkeydown=e=>{if(e.key==='Enter')go()};setTimeout(()=>i.focus(),60)}
+document.addEventListener('click',e=>{const t=e.target;
+ if(t.classList&&t.classList.contains('ov')){if(!t.dataset.nc)t.remove();return}
+ const el=t.closest('[data-a]');if(!el||!A[el.dataset.a])return;
+ try{const r=A[el.dataset.a](el.dataset,el,e);if(r&&r.catch)r.catch(err=>toast(err.message||String(err)))}catch(err){toast(err.message||String(err))}});
+document.addEventListener('input',e=>{const t=e.target;
+ if(t.dataset.ed!==undefined&&ED){if(t.dataset.idx!==undefined)ED.zut[+t.dataset.idx][t.dataset.ed]=t.value;else ED[t.dataset.ed]=t.value;return}
+ if(t.dataset.in&&IN[t.dataset.in])IN[t.dataset.in](t.value,t)});
+A.close=(d,b)=>closeSheet(b.closest('.ov'));
+A.go=d=>{if(d.v==='mehr')return openMore();$('#sheets').innerHTML='';view=d.v;if(['liste','rezepte','woche','snacks','drogerie'].includes(view))LS.set('view',view);render();scrollTo(0,0)};
+
+function render(){
+ const y=scrollY;
+ const nav=[['liste','🛒','Einkauf'],['rezepte','📖','Rezepte'],['woche','📅','Woche'],['snacks','🍿','Snacks'],['drogerie','🧴','Drogerie'],['mehr','☰','Mehr']];
+ const more=['fav','zut','set','info'].includes(view);
+ $('#app').innerHTML=`<header><span>🛒 Einkauf</span><span class="hr"><span>${esc(ME)}</span><button id="sdot" class="dot ${SS}" data-a="syncnow" title="${esc(SERR)}"></button></span></header>${banner()}<main>${main()}</main><nav>${nav.map(([v,i,l])=>`<button data-a="go" data-v="${v}" class="${view===v||(v==='mehr'&&more)?'on':''}"><span>${i}</span>${l}${v==='woche'&&wdot()?'<i class="bdg"></i>':''}</button>`).join('')}</nav>`;
+ scrollTo(0,y)}
+function main(){switch(view){case'rezepte':return viewRezepte();case'woche':return viewWoche();case'snacks':return viewSnacks();case'drogerie':return listView('drogerie');case'fav':return viewFav();case'zut':return viewZut();case'set':return viewSet();case'info':return viewInfo();default:return listView('markt')}}
+function wdot(){const w=DB.wochenplan;return (w.status==='vorschlag'&&w.an===ME)||(w.status==='fertig'&&w.von===ME&&!w.gesehen)}
+function banner(){const w=DB.wochenplan;if(view==='woche')return'';
+ if(w.status==='vorschlag'&&w.an===ME)return`<div class="ban" data-a="go" data-v="woche">📅 ${esc(w.von)} hat Rezept-Vorschläge geschickt – jetzt auswählen</div>`;
+ if(w.status==='fertig'&&w.von===ME&&!w.gesehen)return`<div class="ban" data-a="go" data-v="woche">✅ ${esc(w.an)} hat ausgewählt – die Wochenliste ist fertig</div>`;
+ if(!DBX.ready()&&view==='liste')return`<div class="ban" data-a="go" data-v="set">☁️ Noch nicht mit Dropbox verbunden – Daten liegen nur auf diesem Gerät. Tippen zum Einrichten.</div>`;
+ return''}
+A.syncnow=()=>{if(!DBX.ready()){view='set';render();return}sync(true);toast(SS==='err'?SERR:'Synchronisiere …')};
+
+function askName(first){
+ const el=sheet(first?'Willkommen! Wie heißt du?':'Anderer Nutzer',`<p class="mu">Dein Name wird nur auf diesem Gerät gespeichert. Er wird bei der Wochenplanung und bei Snacks angezeigt.</p><input class="srch" value="${esc(first?'':ME)}" placeholder="Dein Name"><button class="btn">Weiter</button>`,{noclose:first});
+ const i=el.querySelector('input');const go=()=>{const v=i.value.trim();if(!v)return;ME=v;LS.set('me',ME);
+  const id=v.toLowerCase();const ex=DB.nutzer.find(n=>n.id===id);if(!ex)DB.nutzer.push({id,name:v,u:now()});else if(ex.d){ex.d=false;ex.u=now()}
+  closeSheet(el);persist()};
+ el.querySelector('.btn').onclick=go;i.onkeydown=e=>{if(e.key==='Enter')go()};setTimeout(()=>i.focus(),80)}
+function openMore(){
+ const rows=[['fav','⭐','Favoriten'],['zut','🥕','Zutaten & Artikel verwalten'],['set','⚙️','Einstellungen (Dropbox, Claude)'],['info','ℹ️','Info & Versionsverlauf']];
+ const el=sheet('Menü',rows.map(([v,i,l])=>`<button class="opt" data-a="go" data-v="${v}"><span>${i}</span>${l}</button>`).join('')+`<button class="opt" data-a="other"><span>👤</span>Anderer Nutzer (angemeldet als ${esc(ME)})</button>`)}
+A.other=()=>{$('#sheets').innerHTML='';askName(false)};
+
+/* =====================  Einkaufsliste / Drogerie  ===================== */
+function rowHTML(i){
+ const lad=iladen(i);
+ const q=i.done?'':(i.menge==null?`<button data-a="inc" data-id="${i.id}">＋</button>`:`<button data-a="dec" data-id="${i.id}">${i.menge<=stepOf(i.menge,i.einheit)?'🗑':'−'}</button><span>${esc(fmtQty(i.menge,i.einheit))}</span><button data-a="inc" data-id="${i.id}">＋</button>`);
+ return`<div class="it ${i.done?'done':''}"><div class="cb" data-a="tog" data-id="${i.id}">✓</div><div class="nm" data-a="editit" data-id="${i.id}">${esc(iname(i))}${i.done&&i.menge!=null?` <small style="display:inline">${esc(fmtQty(i.menge,i.einheit))}</small>`:''}${lad?`<br><span class="lad"><small style="display:inline;color:inherit">📍 ${esc(lad)}</small></span>`:''}</div><div class="qty">${q}</div></div>`}
+function listView(typ){
+ const l=actList(typ);const items=live(DB.items).filter(i=>i.lid===l.id);const flt=FLT[typ]||'';
+ const laeden=[...new Set(items.map(iladen).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
+ const ok=i=>!flt||iladen(i)===flt;
+ const open=items.filter(i=>!i.done&&ok(i)),done=items.filter(i=>i.done&&ok(i));
+ const order=catsOf(typ);for(const i of open){const k=ikat(i);if(!order.includes(k))order.push(k)}
+ let h=`<div class="bar">${typ==='markt'?`<select data-in="actlist">${lists(typ).map(x=>`<option value="${x.id}" ${x.id===l.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="ib" data-a="newlist">＋</button>`:`<b class="ttl">🧴 ${esc(l.name)}</b>`}<button class="ib" data-a="listmenu" data-typ="${typ}">⋯</button></div>`;
+ h+=`<button class="addbar" data-a="addmanual" data-typ="${typ}">＋ Artikel hinzufügen …</button>`;
+ if(laeden.length)h+=`<div class="chips"><button class="chip ${flt?'':'on'}" data-a="flt" data-typ="${typ}" data-v="">Alle</button>${laeden.map(x=>`<button class="chip ${flt===x?'on':''}" data-a="flt" data-typ="${typ}" data-v="${esc(x)}">📍 ${esc(x)}</button>`).join('')}</div>`;
+ for(const k of order){const its=open.filter(i=>ikat(i)===k);if(its.length)h+=`<div class="cat">${esc(k)}</div>`+its.sort(byName).map(rowHTML).join('')}
+ if(!open.length&&!done.length)h+=`<div class="empty">Die Liste ist leer.<br>Füge Artikel hinzu${typ==='markt'?', nimm Rezepte, Favoriten oder die Wochenplanung':''}.</div>`;
+ if(done.length)h+=`<div class="cat">Erledigt (${done.length})</div>`+done.sort(byName).map(rowHTML).join('')+`<button class="lnk" data-a="clrdone" data-lid="${l.id}">Erledigte entfernen</button>`;
+ return h}
+IN.actlist=v=>{LS.set('act_markt',v);render()};
+A.flt=d=>{FLT[d.typ]=d.v;render()};
+A.tog=d=>{const i=item(d.id);i.done=!i.done;i.u=now();persist()};
+A.inc=d=>{const i=item(d.id);if(i.menge==null){i.menge=1;if(!i.einheit)i.einheit='Stück'}else i.menge+=stepOf(i.menge,i.einheit);i.u=now();persist()};
+function removeItem(i,msg){const snap={...i};i.d=true;i.u=now();persist();toast(msg||'Entfernt',()=>{const j=item(snap.id);Object.assign(j,snap,{d:false,u:now()});persist()})}
+A.dec=d=>{const i=item(d.id);const s=stepOf(i.menge,i.einheit);if(i.menge-s<=0)return removeItem(i,iname(i)+' entfernt');i.menge-=s;i.u=now();persist()};
+A.clrdone=d=>{const its=live(DB.items).filter(i=>i.lid===d.lid&&i.done);if(!its.length)return;const snaps=its.map(i=>({...i}));for(const i of its){i.d=true;i.u=now()}persist();toast(its.length+' erledigte entfernt',()=>{for(const s of snaps){Object.assign(item(s.id),s,{d:false,u:now()})}persist()})};
+A.addmanual=d=>{const l=actList(d.typ);pickZutat({typ:d.typ,keepOpen:true,title:'Hinzufügen zu „'+l.name+'“',onPick:z=>{addItem(l.id,{zid:z.id,name:z.name,menge:defQty(z.eh),einheit:z.eh});persist();toast(z.name+' ✓')}})};
+A.newlist=()=>ask('Neue Liste','',n=>{const l={id:uid(),name:n,typ:'markt',u:now()};DB.listen.push(l);LS.set('act_markt',l.id);persist()},'z. B. Wochenmarkt');
+A.listmenu=d=>{const typ=d.typ,l=actList(typ);
+ const el=sheet(l.name,`${typ==='markt'?`<button class="opt" data-a="lrename" data-typ="${typ}"><span>✏️</span>Liste umbenennen</button>`:''}<button class="opt" data-a="lreset" data-typ="${typ}"><span>↺</span>Alle Haken entfernen</button><button class="opt" data-a="clrdone2" data-typ="${typ}"><span>🧹</span>Erledigte entfernen</button><button class="opt" data-a="katorder" data-typ="${typ}"><span>↕️</span>Reihenfolge der Kategorien</button>${typ==='markt'&&lists(typ).length>1?`<button class="opt" data-a="ldel" data-typ="${typ}"><span>🗑</span>Liste löschen</button>`:''}`)};
+A.lrename=d=>{const l=actList(d.typ);closeSheet();ask('Liste umbenennen',l.name,n=>{l.name=n;l.u=now();persist()})};
+A.lreset=d=>{const l=actList(d.typ);for(const i of live(DB.items))if(i.lid===l.id&&i.done){i.done=false;i.u=now()}closeSheet();persist()};
+A.clrdone2=d=>{const l=actList(d.typ);closeSheet();A.clrdone({lid:l.id})};
+A.ldel=d=>{const l=actList(d.typ);if(!confirm('Liste „'+l.name+'“ mit allen Artikeln löschen?'))return;l.d=true;l.u=now();for(const i of DB.items)if(i.lid===l.id&&!i.d){i.d=true;i.u=now()}LS.set('act_markt','');closeSheet();persist()};
+A.katorder=d=>{closeSheet();const el=sheet('Reihenfolge der Kategorien','');el.dataset.typ=d.typ;drawKat(el)};
+function drawKat(el){const typ=el.dataset.typ;const cs=catsOf(typ);
+ el.querySelector('.shb').innerHTML=`<p class="mu">Reihenfolge wie im Laden – oben zuerst.</p>`+cs.map((k,i)=>`<div class="krow"><span>${esc(k)}</span><button class="ib" data-a="kmv" data-i="${i}" data-d="-1">↑</button><button class="ib" data-a="kmv" data-i="${i}" data-d="1">↓</button></div>`).join('')+`<div class="krow"><input class="srch" placeholder="Neue Kategorie"><button class="ib" data-a="kadd">＋</button></div>`}
+A.kmv=(d,b)=>{const el=b.closest('.ov'),typ=el.dataset.typ,cs=catsOf(typ),i=+d.i,j=i+ +d.d;if(j<0||j>=cs.length)return;[cs[i],cs[j]]=[cs[j],cs[i]];DB.katOrder[typ]=cs;DB.katOrder.u=now();persist();drawKat(el)};
+A.kadd=(d,b)=>{const el=b.closest('.ov'),typ=el.dataset.typ,v=el.querySelector('input').value.trim();if(!v)return;const cs=catsOf(typ);if(!cs.includes(v))cs.splice(Math.max(0,cs.length-1),0,v);DB.katOrder[typ]=cs;DB.katOrder.u=now();persist();drawKat(el)};
+
+/* ---- Artikel bearbeiten ---- */
+A.editit=d=>{const i=item(d.id),z=Z(i.zid),typ=(lists('markt').some(l=>l.id===i.lid))?'markt':'drogerie';
+ const el=sheet(iname(i),`<label class="lb">Menge</label><div class="row"><input class="srch" inputmode="decimal" name="m" value="${i.menge==null?'':fmtNum(i.menge)}"><select class="u" name="e">${unitOpts(i.einheit)}</select></div>
+ <label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(typ).map(k=>`<option ${k===ikat(i)?'selected':''}>${esc(k)}</option>`).join('')}</select>
+ <label class="lb">Wo gibt es das? (Laden)</label><input class="srch" name="l" list="ladenlist" value="${esc(iladen(i))}" placeholder="z. B. Rewe, Metzger, dm"><datalist id="ladenlist">${[...new Set(live(DB.zutaten).map(x=>x.laden).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+ <button class="btn" data-a="itsave" data-id="${i.id}" data-typ="${typ}">Speichern</button><button class="btn sec" data-a="itfav" data-id="${i.id}" data-typ="${typ}">⭐ Zu Favoriten</button><button class="btn dng" data-a="itdel" data-id="${i.id}">Entfernen</button>`)};
+A.itsave=(d,b)=>{const el=b.closest('.ov'),i=item(d.id),f=n=>el.querySelector(`[name=${n}]`).value;
+ i.menge=parseNum(f('m'));i.einheit=f('e');if(i.menge==null&&!i.einheit)i.einheit='';
+ const kat=f('k'),lad=f('l').trim();const z=Z(i.zid);
+ if(z){z.kat=kat;z.laden=lad;z.u=now();delete i.laden}else{i.kat=kat;i.laden=lad}
+ i.u=now();closeSheet(el);persist()};
+A.itdel=(d,b)=>{closeSheet(b.closest('.ov'));removeItem(item(d.id))};
+A.itfav=(d,b)=>{const i=item(d.id);if(!i.zid)return toast('Nur für Artikel aus dem Katalog');
+ if(!live(DB.favoriten).some(f=>f.zid===i.zid&&f.typ===d.typ))DB.favoriten.push({id:uid(),typ:d.typ,zid:i.zid,name:i.name,menge:i.menge??defQty(i.einheit),einheit:i.einheit||'Stück',u:now()});
+ closeSheet(b.closest('.ov'));persist();toast('⭐ '+i.name+' ist jetzt Favorit')};
+
+/* ---- Zutaten-Auswahl (Dropdown mit Suche) ---- */
+function pickZutat(o){
+ const typ=o.typ||'markt';
+ const el=sheet(o.title||'Zutat wählen',`<input class="srch" placeholder="Suchen oder neu eingeben …" value="${esc(o.q||'')}"><div class="plist"></div>`);
+ const inp=el.querySelector('input'),list=el.querySelector('.plist');
+ const draw=()=>{const v=inp.value.trim();const res=searchZutaten(v,typ);const exact=v&&findZutat(v);
+  list.innerHTML=res.map(z=>`<div class="prow" data-id="${z.id}"><span>${esc(z.name)}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}</span><small>${esc(z.kat)}</small></div>`).join('')+(v&&!exact?`<div class="prow new" data-new="1">＋ „${esc(v)}“ neu anlegen</div>`:'')+(!res.length&&!v?'<div class="empty">Noch keine Einträge</div>':'')};
+ const done=z=>{o.onPick(z);if(!o.keepOpen)closeSheet(el)};
+ inp.oninput=draw;draw();
+ list.onclick=e=>{const r=e.target.closest('.prow');if(!r)return;if(r.dataset.new)newZutatDialog(inp.value.trim(),typ,z=>{if(o.keepOpen){inp.value='';draw()}done(z)},o.defKat);else done(Z(r.dataset.id))};
+ setTimeout(()=>inp.focus(),80)}
+function newZutatDialog(name,typ,cb,defKat){
+ const cs=catsOf(typ);const dk=cs.includes(defKat)?defKat:(typ==='markt'?'Obst & Gemüse':cs[0]);
+ const el=sheet('Neuer Artikel',`<label class="lb">Name</label><input class="srch" name="n" value="${esc(name)}"><label class="lb">Kategorie</label><select class="srch" name="k">${cs.map(k=>`<option ${k===dk?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Üblicher Einkauf in … (optional)</label><input class="srch" name="l" placeholder="Laden, z. B. Rewe"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option>${u}</option>`).join('')}</select><button class="btn">Anlegen</button>`);
+ el.querySelector('.btn').onclick=()=>{const f=n=>el.querySelector(`[name=${n}]`).value.trim();const n=f('n');if(!n)return;
+  let z=findZutat(n);if(!z||z.typ!==typ){z={id:uid(),name:n,kat:f('k'),eh:f('e')||'Stück',laden:f('l'),alias:[],typ,u:now()};DB.zutaten.push(z);persist(true)}
+  closeSheet(el);cb(z)}}
+
+/* =====================  Rezepte  ===================== */
+const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
+const rlist=()=>{const q=RQ.toLowerCase().trim();const rs=live(DB.rezepte).filter(r=>!q||recText(r).includes(q)).sort(byTitel);
+ return rs.length?rs.map(r=>`<div class="card" data-a="openrec" data-id="${r.id}"><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${r.portionen} Portionen</small></div>`).join(''):`<div class="empty">${RQ?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`};
+function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div><div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
+IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist()};
+A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto und Link nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
+A.recman=()=>{closeSheet();openEditor(null)};
+A.recphoto=d=>{closeSheet();const i=document.createElement('input');i.type='file';i.accept='image/*';if(d.c)i.capture='environment';else i.multiple=true;i.onchange=()=>{if(i.files.length)importFlow(()=>importPhoto([...i.files]))};i.click()};
+A.reclink=()=>{closeSheet();ask('Rezept-Link','',u=>importFlow(()=>importLink(u)),'https://…')};
+async function importFlow(fn){const done=busy('Rezept wird gelesen …');try{const r=await fn();done();openEditor(r)}catch(e){done();toast(e.message||String(e))}}
+
+A.openrec=d=>{const r=Rz(d.id);RD={id:r.id,por:r.portionen,lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
+function drawRec(el){const r=Rz(RD.id);const f=RD.por/r.portionen;
+ el.querySelector('.shb').innerHTML=`<div class="row" style="justify-content:space-between"><span>Portionen</span><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span></div>
+ <div class="cat">Zutaten</div>${r.zutaten.map(x=>{const z=Z(x.zid);return`<div class="srow"><span>${esc(z?z.name:x.n||'?')}</span><span>${x.menge==null?'':esc(fmtQty(toBase(x.menge*f,x.einheit),fam(x.einheit)))}</span></div>`}).join('')}
+ ${r.schritte?`<div class="cat">Zubereitung</div><ol style="padding-left:20px;margin:6px 0">${r.schritte.split(/\n+/).filter(s=>s.trim()).map(s=>`<li style="margin-bottom:6px">${esc(s)}</li>`).join('')}</ol>`:''}
+ ${r.quelle?`<p class="mu">Quelle: ${/^https?:\/\//.test(r.quelle)?`<a href="${esc(r.quelle)}" target="_blank" rel="noopener">${esc(r.quelle)}</a>`:esc(r.quelle)}</p>`:''}
+ <label class="lb">Zur Liste</label><select class="srch" data-in="rlid">${lists('markt').map(l=>`<option value="${l.id}" ${l.id===RD.lid?'selected':''}>${esc(l.name)}</option>`).join('')}</select>
+ <button class="btn" data-a="rtolist">🛒 Zur Einkaufsliste hinzufügen</button><button class="btn sec" data-a="redit">✏️ Rezept anpassen</button>`}
+IN.rlid=v=>{if(RD)RD.lid=v};
+A.rpor=(d,b)=>{RD.por=Math.max(1,RD.por+ +d.d);drawRec(b.closest('.ov'))};
+A.rtolist=(d,b)=>{const r=Rz(RD.id),f=RD.por/r.portionen,l=live(DB.listen).find(x=>x.id===RD.lid)||actList('markt');
+ for(const x of r.zutaten)addItem(l.id,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*f,einheit:x.einheit});
+ LS.set('act_markt',l.id);closeSheet(b.closest('.ov'));persist();toast(r.zutaten.length+' Zutaten zu „'+l.name+'“ hinzugefügt')};
+A.redit=(d,b)=>{const r=Rz(RD.id);closeSheet(b.closest('.ov'));openEditor(r)};
+A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id);r.d=true;r.u=now();closeSheet(b.closest('.ov'));persist()};
+
+/* ---- Rezept-Editor ---- */
+function openEditor(r){
+ ED=r?{id:r.id,titel:r.titel,portionen:r.portionen,schritte:r.schritte||'',quelle:r.quelle||'',zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
+ if(!ED.zut.length)ED.zut=[{}];
+ if(r&&!r.id)delete ED.id;
+ ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
+function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
+ el.querySelector('.shb').innerHTML=`<label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Portionen</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Zutaten</label>
+ ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>`).join('')}
+ <button class="lnk" data-a="edadd">＋ Zutat hinzufügen</button>
+ <label class="lb">Zubereitung (ein Schritt pro Zeile)</label><textarea class="srch" rows="6" data-ed="schritte">${esc(s.schritte)}</textarea><label class="lb">Quelle / Link</label><input class="srch" data-ed="quelle" value="${esc(s.quelle)}">
+ <button class="btn" data-a="edsave">Speichern</button>${s.id?`<button class="btn dng" data-a="recdel" data-id="${s.id}">Rezept löschen</button>`:''}`;
+ el.querySelector('.shb').scrollTop=sc}
+A.edadd=()=>{ED.zut.push({});drawEditor()};
+A.edrm=d=>{ED.zut.splice(+d.idx,1);if(!ED.zut.length)ED.zut=[{}];drawEditor()};
+A.edpick=d=>{const x=ED.zut[+d.idx];pickZutat({typ:'markt',q:x.zid?'':(x.name||''),defKat:x.sug,onPick:z=>{x.zid=z.id;x.name=z.name;if(!x.einheit)x.einheit=z.eh;drawEditor()}})};
+A.edsave=()=>{
+ const s=ED;if(!String(s.titel||'').trim())return toast('Bitte einen Titel eingeben');
+ const zut=[];for(const x of s.zut){let z=x.zid?Z(x.zid):null;
+  if(!z&&x.name&&x.name.trim()){z=findZutat(x.name);if(!z){const cs=catsOf('markt');z={id:uid(),name:x.name.trim(),kat:cs.includes(x.sug)?x.sug:'Sonstiges',eh:x.einheit||'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}}
+  if(z)zut.push({zid:z.id,n:z.name,menge:parseNum(x.menge),einheit:x.einheit||''})}
+ const r={id:s.id||uid(),titel:String(s.titel).trim(),portionen:Math.max(1,parseInt(s.portionen)||4),zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',u:now()};
+ const i=DB.rezepte.findIndex(x=>x.id===r.id);if(i>=0)DB.rezepte[i]=r;else DB.rezepte.push(r);
+ closeSheet(s.el);ED=null;persist();toast('Rezept gespeichert')};
+
+/* ---- Import: Foto / Link (Claude) ---- */
+const UMAP={stk:'Stück','stk.':'Stück',st:'Stück','st.':'Stück',stück:'Stück',stueck:'Stück',pck:'Packung','pck.':'Packung',päckchen:'Packung',packung:'Packung',packungen:'Packung',pkg:'Packung',dose:'Dose',dosen:'Dose',prise:'Prise',prisen:'Prise',msp:'Prise','msp.':'Prise',bund:'Bund',zehe:'Zehe',zehen:'Zehe',scheibe:'Scheibe',scheiben:'Scheibe',el:'EL',tl:'TL',g:'g',gr:'g',kg:'kg',ml:'ml',l:'l',liter:'l'};
+const normUnit=u=>{if(!u)return'';const k=String(u).trim().toLowerCase();return UMAP[k]||(UNITS.includes(String(u).trim())?String(u).trim():'')};
+function recipePrompt(){
+ const names=live(DB.zutaten).filter(z=>z.typ==='markt').map(z=>z.name).slice(0,600).join('; ');
+ return`Lies das Rezept und antworte NUR mit einem JSON-Objekt (kein weiterer Text):
+{"titel":"","portionen":4,"zutaten":[{"name":"","menge":null,"einheit":"","kategorie":""}],"schritte":["",""]}
+Regeln: Deutsch. "menge" ist eine Zahl (Brüche als Dezimalzahl) oder null. "einheit" nur aus: ${UNITS.join(', ')} – sonst leerer String (Zählbares wie 2 Zwiebeln = "Stück"). "name" ohne Mengenangaben in Grundform, z. B. "Paprika (gelb)" statt "gelbe Paprika". Wenn eine Zutat einer dieser vorhandenen Zutaten entspricht, verwende EXAKT diese Schreibweise: ${names}. "kategorie" aus: ${KAT_MARKT.join('; ')}. "schritte": kurze Arbeitsschritte.`}
+async function claudeJSON(content){
+ const key=(LS.get('claude_key','')||'').trim();if(!key)throw new Error('Kein Claude-API-Key hinterlegt (Mehr → Einstellungen).');
+ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:LS.get('claude_model','claude-sonnet-5-5'),max_tokens:4000,messages:[{role:'user',content}]})});
+ const j=await r.json();if(!r.ok)throw new Error('Claude: '+(j.error?.message||r.status));
+ const t=(j.content||[]).map(c=>c.text||'').join('');const m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('Antwort von Claude nicht lesbar');return JSON.parse(m[0])}
+function fromClaude(j,quelle){
+ return{titel:j.titel||'',portionen:parseInt(j.portionen)||4,schritte:[].concat(j.schritte||[]).join('\n'),quelle:quelle||'',
+  zut:(j.zutaten||[]).map(x=>{const z=findZutat(x.name);return{zid:z?z.id:null,name:z?z.name:String(x.name||''),menge:x.menge==null?'':fmtNum(+x.menge),einheit:normUnit(x.einheit),sug:x.kategorie}})}}
+function imgToB64(file,max=1568){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.85).split(',')[1])};im.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden'));im.src=u})}
+async function importPhoto(files){
+ const imgs=[];for(const f of files.slice(0,4))imgs.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await imgToB64(f)}});
+ return fromClaude(await claudeJSON([...imgs,{type:'text',text:recipePrompt()}]),'')}
+async function fetchPage(url){
+ const tries=[url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url),'https://corsproxy.io/?'+encodeURIComponent(url)];
+ for(const u of tries){try{const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);const r=await fetch(u,{signal:c.signal});clearTimeout(t);if(r.ok){const h=await r.text();if(h&&h.length>200)return h}}catch(e){}}
+ throw new Error('Die Seite konnte nicht geladen werden. Bitte Rezept per Foto oder manuell eingeben.')}
+function findRecipeLD(doc){for(const s of doc.querySelectorAll('script[type="application/ld+json"]')){let j;try{j=JSON.parse(s.textContent)}catch(e){continue}const st=[j];while(st.length){const o=st.pop();if(!o)continue;if(Array.isArray(o)){st.push(...o);continue}if(typeof o!=='object')continue;if([].concat(o['@type']||[]).includes('Recipe'))return o;if(o['@graph'])st.push(o['@graph'])}}return null}
+function ldSteps(x){if(!x)return[];if(typeof x==='string')return x.split(/\n+/).map(s=>s.trim()).filter(Boolean);if(Array.isArray(x))return x.flatMap(ldSteps);if(x.itemListElement)return ldSteps(x.itemListElement);return x.text?[x.text]:x.name?[x.name]:[]}
+function parseLine(s){s=String(s).replace(/\s+/g,' ').trim();
+ const m=s.match(/^([\d.,\/½¼¾]+(?:\s+[\d\/½¼¾]+)?)?\s*(kg|g|ml|l|EL|TL|Prisen?|Bund|Dosen?|Packungen?|Pck\.?|Päckchen|Stück|Stk\.?|St\.?|Zehen?|Scheiben?|Msp\.?)?\s+(.+)$/i);
+ if(!m)return{name:s,menge:null,einheit:''};
+ const menge=parseNum(m[1]);let einheit=normUnit(m[2]);if(menge!=null&&!einheit)einheit='Stück';
+ return{name:m[3].trim(),menge,einheit}}
+function mapLD(ld,url){
+ return{titel:ld.name||'',portionen:parseInt([].concat(ld.recipeYield||'')[0])||4,schritte:ldSteps(ld.recipeInstructions).join('\n'),quelle:url,
+  zut:[].concat(ld.recipeIngredient||[]).map(parseLine).map(p=>{const z=findZutat(p.name);return{zid:z?z.id:null,name:z?z.name:p.name,menge:p.menge==null?'':fmtNum(p.menge),einheit:p.einheit}})}}
+async function importLink(url){
+ if(!/^https?:\/\//i.test(url))url='https://'+url;
+ const html=await fetchPage(url);const doc=new DOMParser().parseFromString(html,'text/html');const ld=findRecipeLD(doc);
+ if((LS.get('claude_key','')||'').trim()){doc.querySelectorAll('script,style,nav,footer,header').forEach(n=>n.remove());
+  const src=ld?JSON.stringify(ld).slice(0,12000):(doc.body.textContent||'').replace(/\s+/g,' ').slice(0,14000);
+  return fromClaude(await claudeJSON([{type:'text',text:recipePrompt()+'\n\nRezeptquelle:\n'+src}]),url)}
+ if(ld)return mapLD(ld,url);
+ throw new Error('Auf der Seite wurde kein Rezept gefunden. Mit Claude-API-Key klappt es meist trotzdem (Mehr → Einstellungen).')}
+
+/* =====================  Favoriten  ===================== */
+function viewFav(){
+ const fs=live(DB.favoriten).filter(f=>f.typ===FAVT);const order=catsOf(FAVT);for(const f of fs){const k=Z(f.zid)?.kat||'Sonstiges';if(!order.includes(k))order.push(k)}
+ let h=`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><b class="ttl">⭐ Favoriten</b><button class="ib" data-a="favadd">＋</button></div><div class="seg"><button class="${FAVT==='markt'?'on':''}" data-a="favt" data-v="markt">Einkauf</button><button class="${FAVT==='drogerie'?'on':''}" data-a="favt" data-v="drogerie">Drogerie</button></div>`;
+ for(const k of order){const its=fs.filter(f=>(Z(f.zid)?.kat||'Sonstiges')===k);if(its.length)h+=`<div class="cat">${esc(k)}</div>`+its.sort(byName).map(f=>`<div class="it"><div class="nm">${esc(Z(f.zid)?.name||f.name)}${Z(f.zid)?.laden?`<br><span class="lad"><small style="display:inline;color:inherit">📍 ${esc(Z(f.zid).laden)}</small></span>`:''}</div><div class="qty"><span>${esc(fmtQty(f.menge,f.einheit))}</span><button data-a="favtol" data-id="${f.id}">🛒</button><button data-a="favdel" data-id="${f.id}">✕</button></div></div>`).join('')}
+ if(!fs.length)h+=`<div class="empty">Noch keine Favoriten.<br>Tippe auf ＋ oder öffne einen Artikel in der Liste und wähle „Zu Favoriten“.</div>`;
+ else h+=`<button class="btn" data-a="favall">🛒 Alle Favoriten auf die Liste</button>`;
+ return h}
+A.favt=d=>{FAVT=d.v;render()};
+A.favadd=()=>pickZutat({typ:FAVT,keepOpen:true,title:'Favorit hinzufügen',onPick:z=>{if(!live(DB.favoriten).some(f=>f.zid===z.id&&f.typ===FAVT)){DB.favoriten.push({id:uid(),typ:FAVT,zid:z.id,name:z.name,menge:defQty(z.eh),einheit:z.eh,u:now()});persist()}toast('⭐ '+z.name)}});
+A.favdel=d=>{const f=DB.favoriten.find(x=>x.id===d.id);f.d=true;f.u=now();persist()};
+function favToList(f){addItem(actList(f.typ).id,{zid:f.zid,name:Z(f.zid)?.name||f.name,menge:f.menge,einheit:f.einheit})}
+A.favtol=d=>{const f=DB.favoriten.find(x=>x.id===d.id);favToList(f);persist();toast((Z(f.zid)?.name||f.name)+' → Liste')};
+A.favall=()=>{const fs=live(DB.favoriten).filter(f=>f.typ===FAVT);fs.forEach(favToList);persist();toast(fs.length+' Favoriten → Liste')};
+
+/* =====================  Zutaten verwalten  ===================== */
+const zlist=()=>{const q=ZQ;const rs=q?[...searchZutaten(q,'markt'),...searchZutaten(q,'drogerie')]:live(DB.zutaten).sort(byName).slice(0,150);
+ return rs.map(z=>`<div class="prow" data-a="zedit" data-id="${z.id}"><span>${esc(z.name)}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}</span><small>${esc(z.kat)}</small></div>`).join('')||'<div class="empty">Nichts gefunden</div>'};
+function viewZut(){return`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><input class="srch" placeholder="Artikel suchen …" data-in="zsearch" value="${esc(ZQ)}"><button class="ib" data-a="znew">＋</button></div><div id="zlist">${zlist()}</div>`}
+IN.zsearch=v=>{ZQ=v;$('#zlist').innerHTML=zlist()};
+A.znew=()=>{const el=sheet('Neuer Artikel',`<div class="seg"><button data-a="znt" data-t="markt">Einkauf</button><button data-a="znt" data-t="drogerie">Drogerie</button></div>`)};
+A.znt=(d,b)=>{closeSheet(b.closest('.ov'));ask('Name des Artikels','',n=>newZutatDialog(n,d.t,()=>persist()))};
+A.zedit=d=>{const z=Z(d.id);
+ sheet(z.name,`<label class="lb">Name</label><input class="srch" name="n" value="${esc(z.name)}"><label class="lb">Auch bekannt als (Komma-getrennt, z. B. „gelbe Paprika“)</label><input class="srch" name="a" value="${esc((z.alias||[]).join(', '))}"><label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(z.typ).map(k=>`<option ${k===z.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Wo gibt es das?</label><input class="srch" name="l" value="${esc(z.laden||'')}"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select><button class="btn" data-a="zsave" data-id="${z.id}">Speichern</button><button class="btn dng" data-a="zdel" data-id="${z.id}">Löschen</button>`)};
+A.zsave=(d,b)=>{const el=b.closest('.ov'),z=Z(d.id),f=n=>el.querySelector(`[name=${n}]`).value.trim();if(!f('n'))return;
+ z.name=f('n');z.alias=f('a').split(',').map(s=>s.trim()).filter(Boolean);z.kat=f('k');z.laden=f('l');z.eh=f('e');z.u=now();closeSheet(el);persist()};
+A.zdel=(d,b)=>{if(!confirm('Artikel aus dem Katalog löschen? Bestehende Einträge in Rezepten und Listen behalten ihren Namen.'))return;const z=Z(d.id);z.d=true;z.u=now();closeSheet(b.closest('.ov'));persist()};
+
+/* =====================  Wochenplanung  ===================== */
+const others=()=>live(DB.nutzer).map(n=>n.name).filter(n=>n.toLowerCase()!==ME.toLowerCase());
+function recChecks(ids,set,w){return ids.map(id=>{const r=Rz(id);return r?`<label class="chk"><input type="checkbox" data-a="wtog" data-w="${w}" data-id="${id}" ${set.has(id)?'checked':''}><span>${esc(r.titel)}</span></label>`:''}).join('')}
+function viewWoche(){
+ const w=DB.wochenplan;const rs=live(DB.rezepte).sort(byTitel);
+ let h=`<div class="bar"><b class="ttl">📅 Wochenplanung</b></div>`;
+ if(w.status==='vorschlag'&&w.an===ME){
+  if(WPICKU!==w.u){WPICK=new Set(w.vorschlaege);WPICKU=w.u;WTARGET='new'}
+  h+=`<div class="note"><b>${esc(w.von)}</b> hat dir ${w.vorschlaege.length} Rezepte vorgeschlagen. Was soll es diese Woche geben?</div>${recChecks(w.vorschlaege,WPICK,'B')}
+  <label class="lb">Zutaten in welche Liste?</label><select class="srch" data-in="wtarget"><option value="new">Neue Liste „Woche ${new Date().getDate()}.${new Date().getMonth()+1}.“</option>${lists('markt').map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select><button class="btn" data-a="wdone">✅ Auswahl bestätigen & Einkaufsliste erstellen</button>`;
+ }else if(w.status==='vorschlag'&&w.von===ME){
+  h+=`<div class="note">⏳ Warte auf <b>${esc(w.an)}</b> – ${w.vorschlaege.length} Rezepte wurden geschickt:</div>${w.vorschlaege.map(id=>`<div class="card">${esc(Rz(id)?.titel||'?')}</div>`).join('')}<button class="btn dng" data-a="wcancel">Vorschläge zurückziehen</button>`;
+ }else if(w.status==='vorschlag'){
+  h+=`<div class="note">Planung läuft: ${esc(w.von)} → ${esc(w.an)}.</div><button class="btn dng" data-a="wcancel">Planung abbrechen</button>`;
+ }else{
+  if(w.status==='fertig'){
+   h+=`<div class="note">✅ <b>${esc(w.an)}</b> hat ausgewählt – die Einkaufsliste ist fertig. Diese Rezepte gibt es:</div>${(w.auswahl||[]).map(id=>`<div class="card"><b>${esc(Rz(id)?.titel||'(gelöscht)')}</b></div>`).join('')}<button class="btn" data-a="wtolist">🛒 Zur Einkaufsliste</button>${w.von===ME&&!w.gesehen?`<button class="btn sec" data-a="wok">Alles klar, danke!</button>`:''}<div class="cat">Neue Planung</div>`}
+  const o=others();if(!WTO&&o.length===1)WTO=o[0];
+  h+=`<p class="mu">Wähle Rezepte, die zur Wahl stehen, und schicke sie als Vorschlag an die andere Person.</p>${rs.length?recChecks(rs.map(r=>r.id),WSEL,'A'):'<div class="empty">Lege zuerst Rezepte an.</div>'}
+  <label class="lb">Vorschläge senden an</label><input class="srch" list="nl" data-in="wto" value="${esc(WTO)}" placeholder="Name"><datalist id="nl">${o.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>${o.length?'':'<p class="mu">Die andere Person erscheint hier, sobald sie die App mit ihrem Namen geöffnet hat.</p>'}
+  <button class="btn" data-a="wsend">📨 Vorschläge senden</button>`}
+ return h}
+IN.wto=v=>{WTO=v};IN.wtarget=v=>{WTARGET=v};
+A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:WPICK;el.checked?s.add(d.id):s.delete(d.id)};
+A.wsend=()=>{if(!WSEL.size)return toast('Bitte mindestens ein Rezept wählen');const to=WTO.trim();if(!to)return toast('Bitte einen Empfänger angeben');
+ DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],u:now()};WSEL=new Set();persist();toast('Vorschläge an '+to+' gesendet')};
+A.wcancel=()=>{DB.wochenplan={id:'wp',status:'leer',u:now()};persist()};
+A.wdone=()=>{const w=DB.wochenplan,sel=[...WPICK];if(!sel.length)return toast('Bitte mindestens ein Rezept wählen');
+ let lid;if(WTARGET==='new'||!lists('markt').some(l=>l.id===WTARGET)){const d=new Date();lid=uid();DB.listen.push({id:lid,name:`Woche ${d.getDate()}.${d.getMonth()+1}.`,typ:'markt',u:now()})}else lid=WTARGET;
+ for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge,einheit:x.einheit})}
+ LS.set('act_markt',lid);DB.wochenplan={...w,status:'fertig',auswahl:sel,listeId:lid,gesehen:false,u:now()};persist();toast('Einkaufsliste erstellt – '+w.von+' wird benachrichtigt')};
+A.wok=()=>{DB.wochenplan={...DB.wochenplan,gesehen:true,status:'leer',u:now()};persist()};
+A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id===id))LS.set('act_markt',id);A.go({v:'liste'})};
+
+/* =====================  Snacks  ===================== */
+function viewSnacks(){
+ const by={};for(const s of live(DB.snacks))(by[s.person]=by[s.person]||[]).push(s);
+ const ps=Object.keys(by).sort((a,b)=>a.localeCompare(b,'de'));
+ return`<div class="bar"><b class="ttl">🍿 Lieblingssnacks unserer Freunde</b><button class="ib" data-a="newperson">＋ Person</button></div>`+
+ (ps.length?ps.map(p=>`<div class="card"><div class="ph"><b>${esc(p)}</b><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button></span></div>${by[p].sort(byName).map(s=>`<div class="srow"><span>${esc(Z(s.zid)?.name||s.name)}</span><span><button class="ib" data-a="snacktol" data-id="${s.id}">🛒</button> <button class="ib" data-a="snackdel" data-id="${s.id}">✕</button></span></div>`).join('')}</div>`).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“ und trage ein, was deine Freunde gern naschen.<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
+A.newperson=()=>ask('Name der Person','',p=>A.snackadd({p}),'z. B. Tom');
+A.snackadd=d=>{const p=d.p;pickZutat({typ:'markt',keepOpen:true,defKat:'Süßes & Snacks',title:'Snack für '+p,onPick:z=>{if(!live(DB.snacks).some(s=>s.person===p&&s.zid===z.id)){DB.snacks.push({id:uid(),person:p,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});persist()}toast(z.name+' → '+p)}})};
+function snackToList(s){addItem(actList('markt').id,{zid:s.zid,name:Z(s.zid)?.name||s.name,menge:s.menge,einheit:s.einheit,fuer:s.person})}
+A.snacktol=d=>{const s=DB.snacks.find(x=>x.id===d.id);snackToList(s);persist();toast((Z(s.zid)?.name||s.name)+' ('+s.person+') → Liste')};
+A.snackall=d=>{const ss=live(DB.snacks).filter(s=>s.person===d.p);ss.forEach(snackToList);persist();toast(ss.length+' Snacks von '+d.p+' → Liste')};
+A.snackdel=d=>{const s=DB.snacks.find(x=>x.id===d.id);s.d=true;s.u=now();persist()};
+
+/* =====================  Einstellungen & Info  ===================== */
+function viewSet(){
+ const conn=DBX.ready();
+ return`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><b class="ttl">⚙️ Einstellungen</b></div>
+ <div class="card"><b>Dein Name</b><p class="mu">${esc(ME)} (nur auf diesem Gerät gespeichert)</p><button class="btn sec" data-a="other" style="margin-top:0">Anderer Nutzer</button></div>
+ <div class="card"><b>☁️ Dropbox ${conn?'– verbunden ✅':'– nicht verbunden'}</b>
+  <label class="lb">Dropbox App-Key</label><input class="srch" data-in="dkey" value="${esc(DBX.key())}" placeholder="aus der Dropbox App Console" autocomplete="off">
+  <label class="lb">Datei in Dropbox (im gemeinsamen Ordner)</label><input class="srch" data-in="dpath" value="${esc(DBX.path())}">
+  <label class="lb">Redirect-URI (in der Dropbox App Console eintragen)</label><input class="srch" readonly value="${esc(REDIRECT)}" onclick="this.select()">
+  <button class="btn" data-a="dconnect">${conn?'Neu verbinden':'Mit Dropbox verbinden'}</button>
+  ${conn?`<button class="btn sec" data-a="syncnow">Jetzt synchronisieren</button><button class="btn dng" data-a="ddisc">Verbindung trennen</button>`:''}
+  <p class="mu">${SS==='err'?'⚠️ '+esc(SERR):(lastSync?'Letzte Synchronisation: '+new Date(lastSync).toLocaleString('de-DE'):'')}</p></div>
+ <div class="card"><b>🤖 Claude (Foto- & Link-Import)</b>
+  <label class="lb">API-Key</label><input class="srch" type="password" data-in="ckey" value="${esc(LS.get('claude_key',''))}" placeholder="sk-ant-…" autocomplete="off">
+  <label class="lb">Modell</label><input class="srch" data-in="cmodel" value="${esc(LS.get('claude_model','claude-sonnet-5-5'))}">
+  <p class="mu">Der Key bleibt nur auf diesem Gerät und wird nicht in Dropbox gespeichert.</p></div>
+ <div class="card"><b>Daten</b><button class="btn sec" data-a="export">Sicherung herunterladen (JSON)</button></div>`}
+IN.dkey=v=>LS.set('dbx_key',v.trim());IN.dpath=v=>LS.set('dbx_path',('/'+v.trim()).replace(/^\/+/,'/'));IN.ckey=v=>LS.set('claude_key',v.trim());IN.cmodel=v=>LS.set('claude_model',v.trim());
+A.dconnect=()=>dbxConnect();
+A.ddisc=()=>{if(!confirm('Verbindung zu Dropbox trennen? Die Daten bleiben auf diesem Gerät erhalten.'))return;LS.set('dbx_tok',null);LS.set('sync_rev',null);syncRev=null;setStatus('off');render()};
+A.export=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,1)],{type:'application/json'}));a.download='einkauf-sicherung-'+new Date().toISOString().slice(0,10)+'.json';a.click()};
+function viewInfo(){
+ return`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><b class="ttl">ℹ️ Info</b></div>
+ <div class="card"><b>Einkauf – gemeinsame Einkaufsliste</b><small>Version ${VERSION} · Angemeldet als ${esc(ME)}</small><small>Dropbox: ${DBX.ready()?'verbunden':'nicht verbunden'}${lastSync?' · zuletzt '+new Date(lastSync).toLocaleString('de-DE'):''}</small></div>
+ <div class="cat">Versionsverlauf</div>${CHANGELOG.map(c=>`<div class="ver"><b>Version ${esc(c.v)}</b> <span class="mu">– ${esc(c.d)}</span><ul>${c.t.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
+ <button class="btn sec" data-a="reload">App neu laden (Update holen)</button>`}
+A.reload=async()=>{try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.reload()};
+
+/* =====================  Start  ===================== */
+async function boot(){
+ rebuild();render();
+ const q=new URLSearchParams(location.search);
+ if(q.get('code')){try{await dbxExchange(q.get('code'));toast('Mit Dropbox verbunden ✅');LS.set('dirty',1);view='liste'}catch(e){toast(e.message)}history.replaceState(null,'',REDIRECT);render()}
+ if(!ME)askName(true);
+ sync(true);
+ setInterval(()=>{if(!document.hidden)sync()},20000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+ addEventListener('online',()=>sync());
+ if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{})}
+boot();
+</script>
+</body>
+</html>
