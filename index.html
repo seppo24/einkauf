@@ -95,9 +95,10 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.3';
+const VERSION='1.0.4';
 const CHANGELOG=[
-{v:'1.0.3',d:'26.10.2026',t:['Rezepte können ein Bild vom Essen haben (Foto, Galerie oder automatisch beim Link-Import); Anzeige in der Rezeptliste und im Rezept; Bilder werden über Dropbox synchronisiert']},
+{v:'1.0.4',d:'26.10.2026',t:['Snacks: Import einer Textliste („Name: Snack, Snack“) mit Vorschau – die Daten werden nur in die eigene Dropbox-Datenbank geschrieben, nicht in den App-Code']},
+ {v:'1.0.3',d:'26.10.2026',t:['Rezepte können ein Bild vom Essen haben (Foto, Galerie oder automatisch beim Link-Import); Anzeige in der Rezeptliste und im Rezept; Bilder werden über Dropbox synchronisiert']},
  {v:'1.0.2',d:'26.10.2026',t:['Fehler behoben: Rezept-Import per Foto und Link (Fehlermeldung „reading map“)']},
  {v:'1.0.1',d:'26.10.2026',t:['Einstellungen: „Verbindung testen“ für den Claude-API-Key (zeigt, ob Key und Modell funktionieren)']},
  {v:'1.0.0',d:'26.10.2026',t:[
@@ -599,8 +600,27 @@ A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id
 function viewSnacks(){
  const by={};for(const s of live(DB.snacks))(by[s.person]=by[s.person]||[]).push(s);
  const ps=Object.keys(by).sort((a,b)=>a.localeCompare(b,'de'));
- return`<div class="bar"><b class="ttl">🍿 Lieblingssnacks unserer Freunde</b><button class="ib" data-a="newperson">＋ Person</button></div>`+
+ return`<div class="bar"><b class="ttl">🍿 Snacks der Freunde</b><button class="ib" data-a="snimp">📥 Import</button><button class="ib" data-a="newperson">＋ Person</button></div>`+
  (ps.length?ps.map(p=>`<div class="card"><div class="ph"><b>${esc(p)}</b><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button></span></div>${by[p].sort(byName).map(s=>`<div class="srow"><span>${esc(Z(s.zid)?.name||s.name)}</span><span><button class="ib" data-a="snacktol" data-id="${s.id}">🛒</button> <button class="ib" data-a="snackdel" data-id="${s.id}">✕</button></span></div>`).join('')}</div>`).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“ und trage ein, was deine Freunde gern naschen.<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
+/* ---- Import einer Textliste "Name: Snack, Snack, …" (Daten werden nur eingefügt, nie im Code gespeichert) ---- */
+let IMPS=[];
+function guessKat(n){const s=n.toLowerCase();if(/fassbrause|cola|radler|wein|tinto|negroni|cocktail|bier|getränk|saft|limo|wasser|sekt|prosecco/.test(s))return'Getränke';if(/käse/.test(s))return'Milch & Käse';if(/wurst/.test(s))return'Fleisch & Fisch';if(/baguette|brot/.test(s))return'Brot & Backwaren';if(/paprika|trauben|gemüse|obst/.test(s))return'Obst & Gemüse';return'Süßes & Snacks'}
+function parseSnacks(t){const out=[];for(const line of String(t).split(/\n+/)){const i=line.indexOf(':');if(i<1)continue;const p=line.slice(0,i).trim();if(!p)continue;
+ for(const x of line.slice(i+1).split(/[,;]|!\s+/).map(x=>x.trim().replace(/[!\s]+$/,'')).filter(Boolean))out.push({p,n:x.charAt(0).toUpperCase()+x.slice(1),on:true})}return out}
+A.snimp=()=>{const el=sheet('Snacks importieren',`<p class="mu">Füge hier deine Liste ein, eine Person pro Zeile, z. B.<br><i>Anna: Chips, Haribo, Cola</i><br>Danach siehst du eine Vorschau und kannst alles korrigieren.</p><textarea class="srch" rows="10" placeholder="Name: Snack, Snack, …"></textarea><button class="btn" data-a="snprev">Vorschau</button>`)};
+A.snprev=(d,b)=>{const el=b.closest('.ov');IMPS=parseSnacks(el.querySelector('textarea').value);if(!IMPS.length)return toast('Keine Einträge erkannt – Format „Name: Snack, Snack“ pro Zeile');
+ closeSheet(el);const v=sheet('Vorschau','');drawImp(v)};
+function drawImp(el){const by={};IMPS.forEach((x,k)=>(by[x.p]=by[x.p]||[]).push([x,k]));
+ el.querySelector('.shb').innerHTML=`<p class="mu">${IMPS.filter(x=>x.on).length} von ${IMPS.length} Einträgen werden importiert. Haken entfernen = überspringen, Text antippen = ändern.</p>`+Object.keys(by).map(p=>`<div class="cat">${esc(p)}</div>`+by[p].map(([x,k])=>`<div class="erow"><input type="checkbox" data-a="imptog" data-k="${k}" ${x.on?'checked':''} style="width:22px;height:22px"><input class="srch" data-in="imp" data-k="${k}" value="${esc(x.n)}"></div>`).join('')).join('')+`<button class="btn" data-a="impgo">Importieren</button>`}
+IN.imp=(v,el)=>{IMPS[+el.dataset.k].n=v};
+A.imptog=(d,b)=>{IMPS[+d.k].on=b.checked};
+A.impgo=(d,b)=>{let n=0;
+ for(const x of IMPS){const nm=x.n.trim();if(!x.on||!nm)continue;let z=findZutat(nm);
+  if(!z){z={id:uid(),name:nm,kat:guessKat(nm),eh:'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}
+  const ex=live(DB.snacks).find(s=>s.person.toLowerCase()===x.p.toLowerCase());
+  if(live(DB.snacks).some(s=>s.person.toLowerCase()===x.p.toLowerCase()&&s.zid===z.id))continue;
+  DB.snacks.push({id:uid(),person:ex?ex.person:x.p,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});n++}
+ closeSheet(b.closest('.ov'));IMPS=[];persist();toast(n+' Snacks importiert')};
 A.newperson=()=>ask('Name der Person','',p=>A.snackadd({p}),'z. B. Tom');
 A.snackadd=d=>{const p=d.p;pickZutat({typ:'markt',keepOpen:true,defKat:'Süßes & Snacks',title:'Snack für '+p,onPick:z=>{if(!live(DB.snacks).some(s=>s.person===p&&s.zid===z.id)){DB.snacks.push({id:uid(),person:p,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});persist()}toast(z.name+' → '+p)}})};
 function snackToList(s){addItem(actList('markt').id,{zid:s.zid,name:Z(s.zid)?.name||s.name,menge:s.menge,einheit:s.einheit,fuer:s.person})}
