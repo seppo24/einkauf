@@ -83,6 +83,7 @@ textarea.srch{resize:vertical}
 .tt button{background:none;border:0;color:#7CFC9A;font-weight:700}
 .ver{border-left:3px solid var(--ac);padding-left:10px;margin:10px 0}
 .ver ul{margin:4px 0 0;padding-left:18px}
+.rc{display:flex;gap:10px;align-items:center}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
 .seg{display:flex;gap:0;margin-bottom:8px}.seg button{flex:1;border:1px solid var(--bd);background:var(--card);padding:9px}
 .seg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 </style>
@@ -94,9 +95,10 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.2';
+const VERSION='1.0.3';
 const CHANGELOG=[
-{v:'1.0.2',d:'26.10.2026',t:['Fehler behoben: Rezept-Import per Foto und Link (Fehlermeldung „reading map“)']},
+{v:'1.0.3',d:'26.10.2026',t:['Rezepte können ein Bild vom Essen haben (Foto, Galerie oder automatisch beim Link-Import); Anzeige in der Rezeptliste und im Rezept; Bilder werden über Dropbox synchronisiert']},
+ {v:'1.0.2',d:'26.10.2026',t:['Fehler behoben: Rezept-Import per Foto und Link (Fehlermeldung „reading map“)']},
  {v:'1.0.1',d:'26.10.2026',t:['Einstellungen: „Verbindung testen“ für den Claude-API-Key (zeigt, ob Key und Modell funktionieren)']},
  {v:'1.0.0',d:'26.10.2026',t:[
   'Erste Version der Einkaufslisten-App',
@@ -252,6 +254,31 @@ async function dbxUpload(data,rev){
  if(!r.ok){const t=await r.text();throw new Error('Dropbox-Upload: '+(r.status===400?t.slice(0,120):r.status))}
  return {rev:(await r.json()).rev}}
 
+/* ---- Rezeptbilder: lokal in IndexedDB, in Dropbox als Datei <Ordner>/bilder/<id>.jpg ---- */
+let IMGC={},IMGM={},IMGFAIL={};
+const IMG={db:null,
+ open(){return this.db||(this.db=new Promise((res,rej)=>{const r=indexedDB.open('einkauf_img',1);r.onupgradeneeded=()=>r.result.createObjectStore('i');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+ async all(){try{const d=await this.open();return await new Promise(res=>{const o={},q=d.transaction('i').objectStore('i').openCursor();q.onsuccess=()=>{const c=q.result;if(c){o[c.key]=c.value;c.continue()}else res(o)};q.onerror=()=>res({})})}catch(e){return{}}},
+ async set(k,v){try{const d=await this.open();d.transaction('i','readwrite').objectStore('i').put(v,k)}catch(e){}},
+ async del(k){try{const d=await this.open();d.transaction('i','readwrite').objectStore('i').delete(k)}catch(e){}}};
+const imgPath=id=>DBX.path().replace(/[^\/]*$/,'')+'bilder/'+id+'.jpg';
+async function dbxPutFile(path,dataUrl){
+ const blob=await (await fetch(dataUrl)).blob();
+ const r=await fetch('https://content.dropboxapi.com/2/files/upload',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Content-Type':'application/octet-stream','Dropbox-API-Arg':asciiJson({path,mode:{'.tag':'overwrite'},autorename:false,mute:true})},body:blob});
+ if(!r.ok)throw new Error('Bild-Upload '+r.status)}
+async function dbxGetFile(path){
+ const r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Dropbox-API-Arg':asciiJson({path})}});
+ if(r.status===409)return null;if(!r.ok)throw new Error('Bild-Download '+r.status);
+ const blob=await r.blob();return await new Promise((res,rej)=>{const f=new FileReader();f.onload=()=>res(f.result);f.onerror=rej;f.readAsDataURL(blob)})}
+async function syncImages(){
+ let changed=false;
+ for(const r of live(DB.rezepte)){const m=IMGM[r.id];
+  try{
+   if(m&&m.up){await dbxPutFile(imgPath(r.id),m.data);m.up=false;await IMG.set(r.id,m)}
+   else if(r.bild&&(!m||m.v<r.bild)&&!IMGFAIL[r.id+'_'+r.bild]){IMGFAIL[r.id+'_'+r.bild]=1;const d=await dbxGetFile(imgPath(r.id));if(d){IMGM[r.id]={v:r.bild,data:d};IMGC[r.id]=d;await IMG.set(r.id,IMGM[r.id]);changed=true}}
+  }catch(e){}}
+ if(changed)render()}
+
 let syncing=false,syncAgain=false,SS=DBX.ready()?'ok':'off',SERR='',syncRev=LS.get('sync_rev',null),syncTimer=null,lastSync=LS.get('last_sync',0);
 function setStatus(s,err){SS=s;SERR=err||'';const d=$('#sdot');if(d){d.className='dot '+s;d.title=err||''}}
 function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(()=>sync(),900)}
@@ -267,6 +294,7 @@ async function sync(force){
    const g=mergeDB(DB,rem.data);DB=g.db;
    if(g.up){const up=await dbxUpload(purge(DB),rem.rev);if(up.conflict)continue;syncRev=up.rev}else syncRev=rem.rev;
    LS.set('dirty',0);LS.set('einkauf_db',DB);rebuild();if(g.down||g.up)render();break}
+  await syncImages();
   LS.set('sync_rev',syncRev);lastSync=now();LS.set('last_sync',lastSync);setStatus('ok')
  }catch(e){setStatus('err',e.message||String(e))}
  finally{syncing=false;if(syncAgain){syncAgain=false;scheduleSync()}}}
@@ -397,7 +425,7 @@ function newZutatDialog(name,typ,cb,defKat){
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
 const rlist=()=>{const q=RQ.toLowerCase().trim();const rs=live(DB.rezepte).filter(r=>!q||recText(r).includes(q)).sort(byTitel);
- return rs.length?rs.map(r=>`<div class="card" data-a="openrec" data-id="${r.id}"><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${r.portionen} Portionen</small></div>`).join(''):`<div class="empty">${RQ?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`};
+ return rs.length?rs.map(r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${r.portionen} Portionen</small></div></div>`).join(''):`<div class="empty">${RQ?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`};
 function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div><div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
 IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist()};
 A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto und Link nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
@@ -408,7 +436,7 @@ async function importFlow(fn){const done=busy('Rezept wird gelesen …');try{con
 
 A.openrec=d=>{const r=Rz(d.id);RD={id:r.id,por:r.portionen,lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
 function drawRec(el){const r=Rz(RD.id);const f=RD.por/r.portionen;
- el.querySelector('.shb').innerHTML=`<div class="row" style="justify-content:space-between"><span>Portionen</span><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span></div>
+ el.querySelector('.shb').innerHTML=`${IMGC[r.id]?`<img class="hero" alt="" src="${IMGC[r.id]}">`:''}<div class="row" style="justify-content:space-between"><span>Portionen</span><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span></div>
  <div class="cat">Zutaten</div>${r.zutaten.map(x=>{const z=Z(x.zid);return`<div class="srow"><span>${esc(z?z.name:x.n||'?')}</span><span>${x.menge==null?'':esc(fmtQty(toBase(x.menge*f,x.einheit),fam(x.einheit)))}</span></div>`}).join('')}
  ${r.schritte?`<div class="cat">Zubereitung</div><ol style="padding-left:20px;margin:6px 0">${r.schritte.split(/\n+/).filter(s=>s.trim()).map(s=>`<li style="margin-bottom:6px">${esc(s)}</li>`).join('')}</ol>`:''}
  ${r.quelle?`<p class="mu">Quelle: ${/^https?:\/\//.test(r.quelle)?`<a href="${esc(r.quelle)}" target="_blank" rel="noopener">${esc(r.quelle)}</a>`:esc(r.quelle)}</p>`:''}
@@ -424,18 +452,21 @@ A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id
 
 /* ---- Rezept-Editor ---- */
 function openEditor(r){
- if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut};
+ if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut,_img:r.img};
  ED=r?{id:r.id,titel:r.titel,portionen:r.portionen,schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
  if(!ED.zut.length)ED.zut=[{}];
+ ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);
  if(r&&!r.id)delete ED.id;
  ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
 function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
- el.querySelector('.shb').innerHTML=`<label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Portionen</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Zutaten</label>
+ el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Portionen</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Zutaten</label>
  ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>`).join('')}
  <button class="lnk" data-a="edadd">＋ Zutat hinzufügen</button>
  <label class="lb">Zubereitung (ein Schritt pro Zeile)</label><textarea class="srch" rows="6" data-ed="schritte">${esc(s.schritte)}</textarea><label class="lb">Quelle / Link</label><input class="srch" data-ed="quelle" value="${esc(s.quelle)}">
  <button class="btn" data-a="edsave">Speichern</button>${s.id?`<button class="btn dng" data-a="recdel" data-id="${s.id}">Rezept löschen</button>`:''}`;
  el.querySelector('.shb').scrollTop=sc}
+A.edimg=d=>{const i=document.createElement('input');i.type='file';i.accept='image/*';if(d.c)i.capture='environment';i.onchange=async()=>{if(!i.files[0])return;try{ED.img=await imgResize(i.files[0],900,.78);ED.imgChanged=true;drawEditor()}catch(e){toast(e.message)}};i.click()};
+A.edimgrm=()=>{ED.img=null;ED.imgChanged=true;drawEditor()};
 A.edadd=()=>{ED.zut.push({});drawEditor()};
 A.edrm=d=>{ED.zut.splice(+d.idx,1);if(!ED.zut.length)ED.zut=[{}];drawEditor()};
 A.edpick=d=>{const x=ED.zut[+d.idx];pickZutat({typ:'markt',q:x.zid?'':(x.name||''),defKat:x.sug,onPick:z=>{x.zid=z.id;x.name=z.name;if(!x.einheit)x.einheit=z.eh;drawEditor()}})};
@@ -444,7 +475,9 @@ A.edsave=()=>{
  const zut=[];for(const x of s.zut){let z=x.zid?Z(x.zid):null;
   if(!z&&x.name&&x.name.trim()){z=findZutat(x.name);if(!z){const cs=catsOf('markt');z={id:uid(),name:x.name.trim(),kat:cs.includes(x.sug)?x.sug:'Sonstiges',eh:x.einheit||'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}}
   if(z)zut.push({zid:z.id,n:z.name,menge:parseNum(x.menge),einheit:x.einheit||''})}
- const r={id:s.id||uid(),titel:String(s.titel).trim(),portionen:Math.max(1,parseInt(s.portionen)||4),zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',u:now()};
+ const id=s.id||uid();let bild=s.bild||0;
+ if(s.imgChanged){if(s.img){bild=now();IMGC[id]=s.img;IMGM[id]={v:bild,data:s.img,up:true};IMG.set(id,IMGM[id])}else{bild=0;delete IMGC[id];delete IMGM[id];IMG.del(id)}}
+ const r={id,titel:String(s.titel).trim(),portionen:Math.max(1,parseInt(s.portionen)||4),zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,u:now()};
  const i=DB.rezepte.findIndex(x=>x.id===r.id);if(i>=0)DB.rezepte[i]=r;else DB.rezepte.push(r);
  closeSheet(s.el);ED=null;persist();toast('Rezept gespeichert')};
 
@@ -464,6 +497,14 @@ async function claudeJSON(content){
 function fromClaude(j,quelle){
  return{titel:j.titel||'',portionen:parseInt(j.portionen)||4,schritte:[].concat(j.schritte||[]).join('\n'),quelle:quelle||'',
   zut:(j.zutaten||[]).map(x=>{const z=findZutat(x.name);return{zid:z?z.id:null,name:z?z.name:String(x.name||''),menge:x.menge==null?'':fmtNum(+x.menge),einheit:normUnit(x.einheit),sug:x.kategorie}})}}
+function imgResize(file,max=900,q=.78){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',q))};im.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden'));im.src=u})}
+async function fetchImage(url){
+ for(const u of [url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url),'https://corsproxy.io/?'+encodeURIComponent(url)]){
+  try{const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);const r=await fetch(u,{signal:c.signal});clearTimeout(t);if(!r.ok)continue;const b=await r.blob();if(b.type.startsWith('image/')&&b.size>500)return await imgResize(b,900,.78)}catch(e){}}
+ return null}
+function pageImage(doc,ld,base){let i=ld&&ld.image;if(Array.isArray(i))i=i[0];if(i&&typeof i==='object')i=i.url||i['@id'];
+ if(!i){const m=doc.querySelector('meta[property="og:image"],meta[name="og:image"]');i=m&&m.getAttribute('content')}
+ try{return i?new URL(i,base).href:null}catch(e){return null}}
 function imgToB64(file,max=1568){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.85).split(',')[1])};im.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden'));im.src=u})}
 async function importPhoto(files){
  const imgs=[];for(const f of files.slice(0,4))imgs.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await imgToB64(f)}});
@@ -485,10 +526,11 @@ function mapLD(ld,url){
 async function importLink(url){
  if(!/^https?:\/\//i.test(url))url='https://'+url;
  const html=await fetchPage(url);const doc=new DOMParser().parseFromString(html,'text/html');const ld=findRecipeLD(doc);
+ const imgUrl=pageImage(doc,ld,url);const getImg=async o=>{if(imgUrl){const d=await fetchImage(imgUrl);if(d)o.img=d}return o};
  if((LS.get('claude_key','')||'').trim()){doc.querySelectorAll('script,style,nav,footer,header').forEach(n=>n.remove());
   const src=ld?JSON.stringify(ld).slice(0,12000):(doc.body.textContent||'').replace(/\s+/g,' ').slice(0,14000);
-  return fromClaude(await claudeJSON([{type:'text',text:recipePrompt()+'\n\nRezeptquelle:\n'+src}]),url)}
- if(ld)return mapLD(ld,url);
+  return getImg(fromClaude(await claudeJSON([{type:'text',text:recipePrompt()+'\n\nRezeptquelle:\n'+src}]),url))}
+ if(ld)return getImg(mapLD(ld,url));
  throw new Error('Auf der Seite wurde kein Rezept gefunden. Mit Claude-API-Key klappt es meist trotzdem (Mehr → Einstellungen).')}
 
 /* =====================  Favoriten  ===================== */
@@ -612,6 +654,7 @@ A.reload=async()=>{try{for(const r of await navigator.serviceWorker.getRegistrat
 /* =====================  Start  ===================== */
 async function boot(){
  rebuild();render();
+ IMG.all().then(o=>{IMGM=o;for(const k in o)IMGC[k]=o[k].data;render()});
  const q=new URLSearchParams(location.search);
  if(q.get('code')){try{await dbxExchange(q.get('code'));toast('Mit Dropbox verbunden ✅');LS.set('dirty',1);view='liste'}catch(e){toast(e.message)}history.replaceState(null,'',REDIRECT);render()}
  if(!ME)askName(true);
