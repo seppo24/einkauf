@@ -84,6 +84,7 @@ textarea.srch{resize:vertical}
 .ver{border-left:3px solid var(--ac);padding-left:10px;margin:10px 0}
 .ver ul{margin:4px 0 0;padding-left:18px}
 .rc{display:flex;gap:10px;align-items:center}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
+.rch{display:flex;justify-content:space-between;cursor:pointer;padding:10px 4px 4px;margin-top:10px;color:var(--tx)}
 .seg{display:flex;gap:0;margin-bottom:8px}.seg button{flex:1;border:1px solid var(--bd);background:var(--card);padding:9px}
 .seg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 </style>
@@ -95,9 +96,10 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.4';
+const VERSION='1.0.5';
 const CHANGELOG=[
-{v:'1.0.4',d:'26.10.2026',t:['Snacks: Import einer Textliste („Name: Snack, Snack“) mit Vorschau – die Daten werden nur in die eigene Dropbox-Datenbank geschrieben, nicht in den App-Code']},
+{v:'1.0.5',d:'26.10.2026',t:['Rezeptbilder deutlich schärfer (höhere Auflösung, beim Link-Import wird das größte verfügbare Bild gewählt)','Rezepte in Kategorien (Frühstück, Suppen, Salate, Pasta, Fleisch & Fisch, Vegetarisch, Beilagen, Backen, Sonstiges), ein- und ausklappbar; Kategorie wird automatisch vorgeschlagen und lässt sich im Rezept ändern']},
+ {v:'1.0.4',d:'26.10.2026',t:['Snacks: Import einer Textliste („Name: Snack, Snack“) mit Vorschau – die Daten werden nur in die eigene Dropbox-Datenbank geschrieben, nicht in den App-Code']},
  {v:'1.0.3',d:'26.10.2026',t:['Rezepte können ein Bild vom Essen haben (Foto, Galerie oder automatisch beim Link-Import); Anzeige in der Rezeptliste und im Rezept; Bilder werden über Dropbox synchronisiert']},
  {v:'1.0.2',d:'26.10.2026',t:['Fehler behoben: Rezept-Import per Foto und Link (Fehlermeldung „reading map“)']},
  {v:'1.0.1',d:'26.10.2026',t:['Einstellungen: „Verbindung testen“ für den Claude-API-Key (zeigt, ob Key und Modell funktionieren)']},
@@ -125,6 +127,7 @@ const byTitel=(a,b)=>a.titel.localeCompare(b.titel,'de');
 const live=a=>(a||[]).filter(x=>!x.d);
 
 /* =====================  Stammdaten  ===================== */
+const REZ_KAT=['Frühstück','Suppen & Eintöpfe','Salate & Vorspeisen','Nudeln & Pasta','Fleisch & Fisch','Vegetarisch & Vegan','Beilagen & Snacks','Backen & Desserts','Sonstiges'];
 const UNITS=['Stück','g','kg','ml','l','EL','TL','Prise','Bund','Dose','Packung','Zehe','Scheibe'];
 const KAT_MARKT=['Obst & Gemüse','Brot & Backwaren','Milch & Käse','Fleisch & Fisch','Tiefkühl','Konserven & Fertiges','Nudeln, Reis & Getreide','Backen','Gewürze, Öle & Soßen','Getränke','Süßes & Snacks','Haushalt','Sonstiges'];
 const KAT_DROG=['Körperpflege','Haarpflege','Zahnpflege','Papier & Hygiene','Waschen & Putzen','Gesundheit','Baby','Sonstiges'];
@@ -425,8 +428,23 @@ function newZutatDialog(name,typ,cb,defKat){
 
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
+const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${r.portionen} Portionen</small></div></div>`;
+function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
+ if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
+ if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
+ if(/frühstück|müsli|porridge|pancake|pfannkuchen|granola|overnight|rührei|smoothie/.test(ti))return'Frühstück';
+ if(/kuchen|torte|muffin|keks|plätzchen|dessert|pudding|mousse|brownie|waffel|eis\b|crumble|tiramisu|cheesecake/.test(ti))return'Backen & Desserts';
+ if(/pasta|nudel|spaghetti|lasagne|penne|tagliatelle|gnocchi|carbonara|ravioli|tortellini|mac/.test(ti))return'Nudeln & Pasta';
+ if(/dip|beilage|snack|brot\b|knödel|püree|pommes|wedges/.test(ti))return'Beilagen & Snacks';
+ if(/hähnchen|huhn|rind|schwein|lachs|fisch|steak|schnitzel|hack|burger|wurst|garnelen|braten|gyros|pute|ente/.test(t))return'Fleisch & Fisch';
+ if(/vegan|vegetar|gemüse|tofu|linsen|kichererbsen|curry|auflauf|ofengemüse/.test(t))return'Vegetarisch & Vegan';
+ return'Sonstiges'}
 const rlist=()=>{const q=RQ.toLowerCase().trim();const rs=live(DB.rezepte).filter(r=>!q||recText(r).includes(q)).sort(byTitel);
- return rs.length?rs.map(r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${r.portionen} Portionen</small></div></div>`).join(''):`<div class="empty">${RQ?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`};
+ if(!rs.length)return`<div class="empty">${RQ?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`;
+ const closed=LS.get('rec_closed',{});const cats=[...REZ_KAT];for(const r of rs){const k=r.kat||'Sonstiges';if(!cats.includes(k))cats.push(k)}
+ return cats.map(k=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===k);if(!its.length)return'';const cl=!q&&closed[k];
+  return`<div class="cat rch" data-a="rtogk" data-k="${esc(k)}"><span>${cl?'▸':'▾'} ${esc(k)}</span><span>${its.length}</span></div>`+(cl?'':its.map(recCard).join(''))}).join('')};
+A.rtogk=d=>{const c=LS.get('rec_closed',{});c[d.k]=!c[d.k];LS.set('rec_closed',c);$('#rlist').innerHTML=rlist()};
 function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div><div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
 IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist()};
 A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto und Link nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
@@ -453,20 +471,20 @@ A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id
 
 /* ---- Rezept-Editor ---- */
 function openEditor(r){
- if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut,_img:r.img};
+ if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut,_img:r.img,kat:r.kat};
  ED=r?{id:r.id,titel:r.titel,portionen:r.portionen,schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
  if(!ED.zut.length)ED.zut=[{}];
- ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);
+ ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);ED.kat=(r&&r.kat)||'';
  if(r&&!r.id)delete ED.id;
  ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
 function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
- el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Portionen</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Zutaten</label>
+ el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Portionen</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
  ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>`).join('')}
  <button class="lnk" data-a="edadd">＋ Zutat hinzufügen</button>
  <label class="lb">Zubereitung (ein Schritt pro Zeile)</label><textarea class="srch" rows="6" data-ed="schritte">${esc(s.schritte)}</textarea><label class="lb">Quelle / Link</label><input class="srch" data-ed="quelle" value="${esc(s.quelle)}">
  <button class="btn" data-a="edsave">Speichern</button>${s.id?`<button class="btn dng" data-a="recdel" data-id="${s.id}">Rezept löschen</button>`:''}`;
  el.querySelector('.shb').scrollTop=sc}
-A.edimg=d=>{const i=document.createElement('input');i.type='file';i.accept='image/*';if(d.c)i.capture='environment';i.onchange=async()=>{if(!i.files[0])return;try{ED.img=await imgResize(i.files[0],900,.78);ED.imgChanged=true;drawEditor()}catch(e){toast(e.message)}};i.click()};
+A.edimg=d=>{const i=document.createElement('input');i.type='file';i.accept='image/*';if(d.c)i.capture='environment';i.onchange=async()=>{if(!i.files[0])return;try{ED.img=await imgResize(i.files[0],1600,.85);ED.imgChanged=true;drawEditor()}catch(e){toast(e.message)}};i.click()};
 A.edimgrm=()=>{ED.img=null;ED.imgChanged=true;drawEditor()};
 A.edadd=()=>{ED.zut.push({});drawEditor()};
 A.edrm=d=>{ED.zut.splice(+d.idx,1);if(!ED.zut.length)ED.zut=[{}];drawEditor()};
@@ -478,7 +496,7 @@ A.edsave=()=>{
   if(z)zut.push({zid:z.id,n:z.name,menge:parseNum(x.menge),einheit:x.einheit||''})}
  const id=s.id||uid();let bild=s.bild||0;
  if(s.imgChanged){if(s.img){bild=now();IMGC[id]=s.img;IMGM[id]={v:bild,data:s.img,up:true};IMG.set(id,IMGM[id])}else{bild=0;delete IMGC[id];delete IMGM[id];IMG.del(id)}}
- const r={id,titel:String(s.titel).trim(),portionen:Math.max(1,parseInt(s.portionen)||4),zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,u:now()};
+ const r={id,titel:String(s.titel).trim(),portionen:Math.max(1,parseInt(s.portionen)||4),zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,kat:s.kat||guessRecKat(String(s.titel),zut.map(x=>Z(x.zid)?.name||'')),u:now()};
  const i=DB.rezepte.findIndex(x=>x.id===r.id);if(i>=0)DB.rezepte[i]=r;else DB.rezepte.push(r);
  closeSheet(s.el);ED=null;persist();toast('Rezept gespeichert')};
 
@@ -488,24 +506,24 @@ const normUnit=u=>{if(!u)return'';const k=String(u).trim().toLowerCase();return 
 function recipePrompt(){
  const names=live(DB.zutaten).filter(z=>z.typ==='markt').map(z=>z.name).slice(0,600).join('; ');
  return`Lies das Rezept und antworte NUR mit einem JSON-Objekt (kein weiterer Text):
-{"titel":"","portionen":4,"zutaten":[{"name":"","menge":null,"einheit":"","kategorie":""}],"schritte":["",""]}
-Regeln: Deutsch. "menge" ist eine Zahl (Brüche als Dezimalzahl) oder null. "einheit" nur aus: ${UNITS.join(', ')} – sonst leerer String (Zählbares wie 2 Zwiebeln = "Stück"). "name" ohne Mengenangaben in Grundform, z. B. "Paprika (gelb)" statt "gelbe Paprika". Wenn eine Zutat einer dieser vorhandenen Zutaten entspricht, verwende EXAKT diese Schreibweise: ${names}. "kategorie" aus: ${KAT_MARKT.join('; ')}. "schritte": kurze Arbeitsschritte.`}
+{"titel":"","portionen":4,"rezeptkategorie":"","zutaten":[{"name":"","menge":null,"einheit":"","kategorie":""}],"schritte":["",""]}
+Regeln: Deutsch. "menge" ist eine Zahl (Brüche als Dezimalzahl) oder null. "einheit" nur aus: ${UNITS.join(', ')} – sonst leerer String (Zählbares wie 2 Zwiebeln = "Stück"). "name" ohne Mengenangaben in Grundform, z. B. "Paprika (gelb)" statt "gelbe Paprika". Wenn eine Zutat einer dieser vorhandenen Zutaten entspricht, verwende EXAKT diese Schreibweise: ${names}. "kategorie" aus: ${KAT_MARKT.join('; ')}. "rezeptkategorie" aus: ${REZ_KAT.join("; ")}. "schritte": kurze Arbeitsschritte.`}
 async function claudeJSON(content){
  const key=(LS.get('claude_key','')||'').trim();if(!key)throw new Error('Kein Claude-API-Key hinterlegt (Mehr → Einstellungen).');
  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:LS.get('claude_model','claude-sonnet-5-5'),max_tokens:4000,messages:[{role:'user',content}]})});
  const j=await r.json();if(!r.ok)throw new Error('Claude: '+(j.error?.message||r.status));
  const t=(j.content||[]).map(c=>c.text||'').join('');const m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('Antwort von Claude nicht lesbar');return JSON.parse(m[0])}
 function fromClaude(j,quelle){
- return{titel:j.titel||'',portionen:parseInt(j.portionen)||4,schritte:[].concat(j.schritte||[]).join('\n'),quelle:quelle||'',
+ return{titel:j.titel||'',kat:REZ_KAT.includes(j.rezeptkategorie)?j.rezeptkategorie:'',portionen:parseInt(j.portionen)||4,schritte:[].concat(j.schritte||[]).join('\n'),quelle:quelle||'',
   zut:(j.zutaten||[]).map(x=>{const z=findZutat(x.name);return{zid:z?z.id:null,name:z?z.name:String(x.name||''),menge:x.menge==null?'':fmtNum(+x.menge),einheit:normUnit(x.einheit),sug:x.kategorie}})}}
 function imgResize(file,max=900,q=.78){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',q))};im.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden'));im.src=u})}
 async function fetchImage(url){
  for(const u of [url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url),'https://corsproxy.io/?'+encodeURIComponent(url)]){
-  try{const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);const r=await fetch(u,{signal:c.signal});clearTimeout(t);if(!r.ok)continue;const b=await r.blob();if(b.type.startsWith('image/')&&b.size>500)return await imgResize(b,900,.78)}catch(e){}}
+  try{const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);const r=await fetch(u,{signal:c.signal});clearTimeout(t);if(!r.ok)continue;const b=await r.blob();if(b.type.startsWith('image/')&&b.size>500)return b}catch(e){}}
  return null}
-function pageImage(doc,ld,base){let i=ld&&ld.image;if(Array.isArray(i))i=i[0];if(i&&typeof i==='object')i=i.url||i['@id'];
- if(!i){const m=doc.querySelector('meta[property="og:image"],meta[name="og:image"]');i=m&&m.getAttribute('content')}
- try{return i?new URL(i,base).href:null}catch(e){return null}}
+function pageImages(doc,ld,base){const c=[];for(const x of [].concat((ld&&ld.image)||[])){const u=(x&&typeof x==='object')?(x.url||x['@id']):x;if(u)c.push(u)}
+ const m=doc.querySelector('meta[property="og:image"],meta[name="og:image"]');if(m&&m.getAttribute('content'))c.push(m.getAttribute('content'));
+ return [...new Set(c.map(u=>{try{return new URL(u,base).href}catch(e){return null}}).filter(Boolean))].slice(0,4)}
 function imgToB64(file,max=1568){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.85).split(',')[1])};im.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden'));im.src=u})}
 async function importPhoto(files){
  const imgs=[];for(const f of files.slice(0,4))imgs.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await imgToB64(f)}});
@@ -527,7 +545,7 @@ function mapLD(ld,url){
 async function importLink(url){
  if(!/^https?:\/\//i.test(url))url='https://'+url;
  const html=await fetchPage(url);const doc=new DOMParser().parseFromString(html,'text/html');const ld=findRecipeLD(doc);
- const imgUrl=pageImage(doc,ld,url);const getImg=async o=>{if(imgUrl){const d=await fetchImage(imgUrl);if(d)o.img=d}return o};
+ const imgUrls=pageImages(doc,ld,url);const getImg=async o=>{let best=null;for(const u of imgUrls){const b=await fetchImage(u);if(b&&(!best||b.size>best.size))best=b}if(best){try{o.img=await imgResize(best,1600,.85)}catch(e){}}return o};
  if((LS.get('claude_key','')||'').trim()){doc.querySelectorAll('script,style,nav,footer,header').forEach(n=>n.remove());
   const src=ld?JSON.stringify(ld).slice(0,12000):(doc.body.textContent||'').replace(/\s+/g,' ').slice(0,14000);
   return getImg(fromClaude(await claudeJSON([{type:'text',text:recipePrompt()+'\n\nRezeptquelle:\n'+src}]),url))}
