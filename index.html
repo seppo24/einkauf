@@ -94,8 +94,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.1';
+const VERSION='1.0.2';
 const CHANGELOG=[
+{v:'1.0.2',d:'26.10.2026',t:['Fehler behoben: Rezept-Import per Foto und Link (Fehlermeldung „reading map“)']},
  {v:'1.0.1',d:'26.10.2026',t:['Einstellungen: „Verbindung testen“ für den Claude-API-Key (zeigt, ob Key und Modell funktionieren)']},
  {v:'1.0.0',d:'26.10.2026',t:[
   'Erste Version der Einkaufslisten-App',
@@ -423,7 +424,8 @@ A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id
 
 /* ---- Rezept-Editor ---- */
 function openEditor(r){
- ED=r?{id:r.id,titel:r.titel,portionen:r.portionen,schritte:r.schritte||'',quelle:r.quelle||'',zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
+ if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut};
+ ED=r?{id:r.id,titel:r.titel,portionen:r.portionen,schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
  if(!ED.zut.length)ED.zut=[{}];
  if(r&&!r.id)delete ED.id;
  ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
