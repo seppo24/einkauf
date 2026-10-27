@@ -98,9 +98,10 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.9';
+const VERSION='1.0.10';
 const CHANGELOG=[
-{v:'1.0.9',d:'27.10.2026',t:['Bewertungen: jede Person bewertet Rezepte getrennt mit 1–5 Sternen (Tippen auf den gleichen Stern entfernt die Bewertung); Durchschnitt in der Rezeptübersicht','Neues Flag „⚡ Schnell“ für schnell zubereitete Rezepte (beim Import automatisch erkannt: bis 30 Minuten)','Rezeptliste filterbar nach Thermomix, Schnell und Bewertung (Ø aller, nur eine Person oder von allen, ab 3/4/5 Sternen)']},
+{v:'1.0.10',d:'27.10.2026',t:['Link-Import robuster: sechs Wege zum Laden der Seite gleichzeitig; bei einem Fehler zeigt die App genau, was blockiert war, und bietet „Text einfügen“ oder „Erneut versuchen“ an','Neu: Rezept per Text einfügen (kopierter Rezepttext wird von Claude zum Rezept)']},
+ {v:'1.0.9',d:'27.10.2026',t:['Bewertungen: jede Person bewertet Rezepte getrennt mit 1–5 Sternen (Tippen auf den gleichen Stern entfernt die Bewertung); Durchschnitt in der Rezeptübersicht','Neues Flag „⚡ Schnell“ für schnell zubereitete Rezepte (beim Import automatisch erkannt: bis 30 Minuten)','Rezeptliste filterbar nach Thermomix, Schnell und Bewertung (Ø aller, nur eine Person oder von allen, ab 3/4/5 Sternen)']},
  {v:'1.0.8',d:'27.10.2026',t:['Thermomix-Rezepte: Haken im Rezept, „Thermomix“ neben den Portionen in der Rezeptübersicht, Filter „Thermomix“ in der Rezeptliste; beim Import erkennt Claude Thermomix-Rezepte automatisch']},
  {v:'1.0.7',d:'27.10.2026',t:['Archiv: abgeschlossene Wochenplanungen werden automatisch gespeichert (wer die Vorschläge gemacht hat, wer ausgewählt hat, jeweils mit Datum und Uhrzeit, gewählte und nicht gewählte Rezepte); Einträge lassen sich löschen (mit Rückgängig). Zu finden unter Woche → Archiv und im Menü Mehr']},
  {v:'1.0.6',d:'27.10.2026',t:['Rezepte skalierbar: Portionen 1–6 (oder beliebig per +/−) zum Hochrechnen, eine Standardportion lässt sich festlegen (★); Mengen im Editor gelten für die Standardportion und werden ab dann daraus skaliert','Snacks der Freunde: Namen einklappbar (Alle auf / Alle zu)','Einstellung: Fleisch & Fisch nicht zusammenrechnen – Posten je Rezept, z. B. „600 g + 400 g“, einzeln abhakbar']},
@@ -485,11 +486,12 @@ A.rate=(d,b)=>{const u=meId(),id=RD.id+'|'+u,n=+d.n;let x=DB.bewertungen.find(y=
 A.rtogk=d=>{const c=LS.get('rec_closed',{});c[d.k]=!c[d.k];LS.set('rec_closed',c);$('#rlist').innerHTML=rlist()};
 function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div>${filterBar()}<div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
 IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist()};
-A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto und Link nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
+A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="rectext"><span>📋</span>Text einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto, Link und Text nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
+A.rectext=()=>{closeSheet();openTextImport('')};
 A.recman=()=>{closeSheet();openEditor(null)};
 A.recphoto=d=>{closeSheet();const i=document.createElement('input');i.type='file';i.accept='image/*';if(d.c)i.capture='environment';else i.multiple=true;i.onchange=()=>{if(i.files.length)importFlow(()=>importPhoto([...i.files]))};i.click()};
 A.reclink=()=>{closeSheet();ask('Rezept-Link','',u=>importFlow(()=>importLink(u)),'https://…')};
-async function importFlow(fn){const done=busy('Rezept wird gelesen …');try{const r=await fn();done();openEditor(r)}catch(e){done();toast(e.message||String(e))}}
+async function importFlow(fn){const done=busy('Rezept wird gelesen …');try{const r=await fn();done();openEditor(r)}catch(e){done();if(e.fetchFail)return fetchFailSheet(e);toast(e.message||String(e))}}
 
 A.openrec=d=>{const r=Rz(d.id);RD={id:r.id,por:recStd(r),lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
 function ratingRows(rid){const me=meId();const us=live(DB.nutzer).slice().sort((a,b)=>(b.id===me)-(a.id===me)||a.name.localeCompare(b.name,'de'));if(!us.some(u=>u.id===me))us.unshift({id:me,name:ME});
@@ -575,9 +577,22 @@ async function importPhoto(files){
  const imgs=[];for(const f of files.slice(0,4))imgs.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await imgToB64(f)}});
  return fromClaude(await claudeJSON([...imgs,{type:'text',text:recipePrompt()}]),'')}
 async function fetchPage(url){
- const tries=[url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url),'https://corsproxy.io/?'+encodeURIComponent(url)];
- for(const u of tries){try{const c=new AbortController();const t=setTimeout(()=>c.abort(),15000);const r=await fetch(u,{signal:c.signal});clearTimeout(t);if(r.ok){const h=await r.text();if(h&&h.length>200)return h}}catch(e){}}
- throw new Error('Die Seite konnte nicht geladen werden. Bitte Rezept per Foto oder manuell eingeben.')}
+ const enc=encodeURIComponent(url);
+ const svc=[['direkt',url],['allorigins','https://api.allorigins.win/raw?url='+enc],['corsproxy','https://corsproxy.io/?'+enc],['codetabs','https://api.codetabs.com/v1/proxy?quest='+enc],['thingproxy','https://thingproxy.freeboard.io/fetch/'+url],['jina-reader','https://r.jina.ai/'+url]];
+ const errs=[];
+ const one=async([n,u])=>{try{const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);let r;try{r=await fetch(u,{signal:c.signal})}finally{clearTimeout(t)}
+   if(!r.ok)throw new Error('HTTP '+r.status);const h=await r.text();if(!h||h.length<200)throw new Error('leere Antwort');
+   if(/Just a moment|cf-browser-verification|Access Denied/i.test(h.slice(0,3000)))throw new Error('Sperrseite');return h}
+  catch(e){errs.push(n+': '+(e.name==='AbortError'?'Zeitüberschreitung':(e.message==='Failed to fetch'?'blockiert':e.message)));throw e}};
+ try{return await Promise.any(svc.map(one))}
+ catch(e){const err=new Error('Die Seite konnte nicht geladen werden.');err.fetchFail=true;err.details=errs;throw err}}
+function fetchFailSheet(e){
+ sheet('Seite nicht ladbar',`<p>Die Seite konnte nicht geladen werden. Die Hilfsdienste sind blockiert oder überlastet.</p><div class="mu" style="margin:6px 0">${(e.details||[]).map(d=>'• '+esc(d)).join('<br>')}</div><button class="btn" data-a="textimp" data-u="${esc(e.url||'')}">📋 Stattdessen Text einfügen</button><button class="btn sec" data-a="retryimp" data-u="${esc(e.url||'')}">↻ Erneut versuchen</button><p class="mu">Tipp: Rezept im Browser öffnen, den Text markieren, kopieren und hier einfügen – oder einen Screenshot als Foto importieren.</p>`)}
+A.retryimp=(d,b)=>{closeSheet(b.closest('.ov'));importFlow(()=>importLink(d.u))};
+A.textimp=(d,b)=>{closeSheet(b.closest('.ov'));openTextImport(d.u||'')};
+function openTextImport(url){sheet('Rezepttext einfügen',`<p class="mu">Kopiere den Rezepttext (Zutaten, am besten auch die Schritte) und füge ihn hier ein. Claude macht daraus das Rezept.</p><textarea class="srch" rows="10" placeholder="Rezepttext hier einfügen …"></textarea><label class="lb">Quelle / Link (optional)</label><input class="srch" value="${esc(url)}"><button class="btn" data-a="txtgo">Auslesen</button>`)}
+A.txtgo=(d,b)=>{const el=b.closest('.ov');const t=el.querySelector('textarea').value.trim();if(t.length<30)return toast('Bitte den Rezepttext einfügen');const q=el.querySelector('input').value.trim();closeSheet(el);importFlow(()=>importText(t,q))};
+async function importText(t,q){return fromClaude(await claudeJSON([{type:'text',text:recipePrompt()+'\n\nRezepttext:\n'+t.slice(0,20000)}]),q)}
 function findRecipeLD(doc){for(const s of doc.querySelectorAll('script[type="application/ld+json"]')){let j;try{j=JSON.parse(s.textContent)}catch(e){continue}const st=[j];while(st.length){const o=st.pop();if(!o)continue;if(Array.isArray(o)){st.push(...o);continue}if(typeof o!=='object')continue;if([].concat(o['@type']||[]).includes('Recipe'))return o;if(o['@graph'])st.push(o['@graph'])}}return null}
 function ldSteps(x){if(!x)return[];if(typeof x==='string')return x.split(/\n+/).map(s=>s.trim()).filter(Boolean);if(Array.isArray(x))return x.flatMap(ldSteps);if(x.itemListElement)return ldSteps(x.itemListElement);return x.text?[x.text]:x.name?[x.name]:[]}
 function parseLine(s){s=String(s).replace(/\s+/g,' ').trim();
@@ -591,7 +606,7 @@ function mapLD(ld,url){
   zut:[].concat(ld.recipeIngredient||[]).map(parseLine).map(p=>{const z=findZutat(p.name);return{zid:z?z.id:null,name:z?z.name:p.name,menge:p.menge==null?'':fmtNum(p.menge),einheit:p.einheit}})}}
 async function importLink(url){
  if(!/^https?:\/\//i.test(url))url='https://'+url;
- const html=await fetchPage(url);const doc=new DOMParser().parseFromString(html,'text/html');const ld=findRecipeLD(doc);
+ let html;try{html=await fetchPage(url)}catch(e){e.url=url;throw e}const doc=new DOMParser().parseFromString(html,'text/html');const ld=findRecipeLD(doc);
  const imgUrls=pageImages(doc,ld,url);const getImg=async o=>{let best=null;for(const u of imgUrls){const b=await fetchImage(u);if(b&&(!best||b.size>best.size))best=b}if(best){try{o.img=await imgResize(best,1600,.85)}catch(e){}}return o};
  if((LS.get('claude_key','')||'').trim()){doc.querySelectorAll('script,style,nav,footer,header').forEach(n=>n.remove());
   const src=ld?JSON.stringify(ld).slice(0,12000):(doc.body.textContent||'').replace(/\s+/g,' ').slice(0,14000);
