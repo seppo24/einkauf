@@ -83,7 +83,7 @@ textarea.srch{resize:vertical}
 .tt button{background:none;border:0;color:#7CFC9A;font-weight:700}
 .ver{border-left:3px solid var(--ac);padding-left:10px;margin:10px 0}
 .ver ul{margin:4px 0 0;padding-left:18px}
-.rc{display:flex;gap:10px;align-items:center}.rc>div{flex:1;min-width:0}.rplus{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:24px;line-height:1;cursor:pointer}.rplus:active{opacity:.7}.rchk{flex:none;width:28px;height:28px;margin:0 8px;accent-color:var(--ac)}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
+.rc{display:flex;gap:10px;align-items:center}.rc>div{flex:1;min-width:0}.rplus{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:24px;line-height:1;cursor:pointer}.rplus:active{opacity:.7}.rc{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.stdh{background:#fff6dd;border:1px solid #e8cf86;border-radius:10px;padding:8px 10px;margin:-2px 0 8px;font-size:14px}.stdh .row{margin-top:6px}.stdh .q{width:64px;padding:6px}.rchk{flex:none;width:28px;height:28px;margin:0 8px;accent-color:var(--ac)}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
 .rch{display:flex;justify-content:space-between;cursor:pointer;padding:10px 4px 4px;margin-top:10px;color:var(--tx)}
 .grp{display:block}.gh{display:flex;justify-content:space-between;gap:8px;margin-bottom:2px}.gs{color:var(--ac);font-weight:600;font-size:14px}.prt{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}.prt .nm small{display:inline;margin-left:6px}
 .stars{display:flex;gap:2px}.star{border:0;background:none;font-size:27px;line-height:1;padding:2px 3px;color:var(--bd)}.star.on{color:#f5b301}.star:disabled{opacity:.75}
@@ -98,8 +98,10 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.2.1';
+const VERSION='1.3.1';
 const CHANGELOG=[
+{v:'1.3.1',d:'27.10.2026',t:['Bestehende Rezepte auf Standardgrößen prüfen: in der Rezeptübersicht ein Rezept lange gedrückt halten, weitere per Checkbox markieren und „Auf Standardgrößen prüfen“ wählen']},
+{v:'1.3.0',d:'27.10.2026',t:['Standardgröße je Lebensmittel mit einstellbaren Umrechnungsregeln (z. B. 150 g = 1 Stück)','Beim Anlegen eines neuen Rezepts (Foto, Link, Text, manuell) erkennt die App abweichende Einheiten, markiert sie, schlägt die Menge in der Standardgröße vor (im Zweifel aufgerundet, änderbar) und fragt, ob sie übernommen werden soll; ohne Regel fragt sie nach dem Faktor und merkt ihn sich']},
 {v:'1.2.1',d:'27.10.2026',t:['Benachrichtigungen zur Wochenplanung für alle drei Schritte mit neuen Texten (Vorschläge → raussuchen → Einkaufsliste kontrollieren → einkaufen gehen)']},
 {v:'1.2.0',d:'27.10.2026',t:['Wochenplanung: gleiche Ansicht wie die Rezepte (Kategorien, Suche, Filter, Fotos); statt ＋ gibt es eine Checkbox, und man kann nach „Ausgewählt“ filtern','Neuer letzter Schritt: Nach der Auswahl prüft die Person, die die Vorschläge gemacht hat, die Einkaufsliste und bestätigt sie. Erst dann gilt die Planung als fertig und kommt ins Archiv (mit Zeitpunkt der Bestätigung)']},
 {v:'1.1.1',d:'27.10.2026',t:['Einkaufsliste leeren (Listenmenü ⋮ → „Liste leeren“) mit Sicherheitsabfrage und Rückgängig','Rezeptübersicht: Mit dem ＋ neben jedem Rezept kommen die Zutaten (in der Standard-Portion) direkt auf die Einkaufsliste; das Rezept öffnen und „Zur Einkaufsliste hinzufügen“ geht weiterhin']},
@@ -177,7 +179,7 @@ DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
 DB.einst=DB.einst||{meatSplit:false,u:0};
 let ME=LS.get('me','');
 let view=LS.get('view','liste');
-const FLT={};let RF=Object.assign({tm:false,schnell:false,min:0,who:'avg'},LS.get('rec_f',{}));let RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WF={tm:false,schnell:false,min:0,who:'avg',sel:false},WQ='',WTO='',WPICK=null,WPICKU=0,WTARGET='new';
+const FLT={};let RF=Object.assign({tm:false,schnell:false,min:0,who:'avg'},LS.get('rec_f',{}));let RSELM=false,RSEL=new Set(),FIND=[],RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WF={tm:false,schnell:false,min:0,who:'avg',sel:false},WQ='',WTO='',WPICK=null,WPICKU=0,WTARGET='new';
 let IDX={},ZKEY=new Map();
 function rebuild(){IDX={};ZKEY=new Map();for(const z of DB.zutaten)IDX[z.id]=z;for(const z of DB.zutaten){if(z.d)continue;ZKEY.set(keyOf(z.name),z);for(const a of z.alias||[]){const k=keyOf(a);if(k&&!ZKEY.has(k))ZKEY.set(k,z)}}}
 const Z=id=>IDX[id];
@@ -201,6 +203,11 @@ function searchZutaten(q,typ){
 /* ---- Mengen ---- */
 const fam=u=>u==='kg'?'g':u==='l'?'ml':(u||'');
 const toBase=(m,u)=>(u==='kg'||u==='l')?m*1000:m;
+function convStd(z,m,u){const fu=fam(u),fe=fam(z.eh),mb=toBase(m,u);
+ for(const r of z.umr||[]){const a=toBase(r.a,r.ua),b=toBase(r.b,r.ub),fa=fam(r.ua),fb=fam(r.ub);let v=null;
+  if(fa===fu&&fb===fe)v=mb/a*b;else if(fb===fu&&fa===fe)v=mb/b*a;
+  if(v!=null&&isFinite(v)){const k=(z.eh==='kg'||z.eh==='l')?1000:1,d=(z.eh==='kg'||z.eh==='l')?10:1;return Math.ceil(v/k*d-1e-9)/d}}
+ return null}
 const fmtNum=n=>(Math.round(n*100)/100).toString().replace('.',',');
 function fmtQty(m,u){if(m==null||m==='')return'';let unit=u||'';if(unit==='g'&&m>=1000){m/=1000;unit='kg'}else if(unit==='ml'&&m>=1000){m/=1000;unit='l'}
  const n=fmtNum(m);return unit==='Stück'?n+'×':unit?n+' '+unit:n}
@@ -393,10 +400,11 @@ document.addEventListener('click',e=>{const t=e.target;
  const el=t.closest('[data-a]');if(!el||!A[el.dataset.a])return;
  try{const r=A[el.dataset.a](el.dataset,el,e);if(r&&r.catch)r.catch(err=>toast(err.message||String(err)))}catch(err){toast(err.message||String(err))}});
 document.addEventListener('input',e=>{const t=e.target;
- if(t.dataset.ed!==undefined&&ED){if(t.dataset.idx!==undefined)ED.zut[+t.dataset.idx][t.dataset.ed]=t.value;else ED[t.dataset.ed]=t.value;return}
+ if(t.dataset.ed!==undefined&&ED){if(t.dataset.idx!==undefined){const x=ED.zut[+t.dataset.idx];x[t.dataset.ed]=t.value;if(t.dataset.ed==='einheit'||t.dataset.ed==='menge'){x.cv=undefined;x.skip=0;if(t.dataset.ed==='einheit')drawEditor()}}else ED[t.dataset.ed]=t.value;return}
  if(t.dataset.in&&IN[t.dataset.in])IN[t.dataset.in](t.value,t)});
+document.addEventListener('change',e=>{const t=e.target;if(ED&&t.dataset&&t.dataset.ed==='menge')drawEditor()});
 A.close=(d,b)=>closeSheet(b.closest('.ov'));
-A.go=d=>{if(d.v==='mehr')return openMore();$('#sheets').innerHTML='';view=d.v;if(['liste','rezepte','woche','snacks','drogerie'].includes(view))LS.set('view',view);render();scrollTo(0,0)};
+A.go=d=>{if(d.v==='mehr')return openMore();if(d.v!=='rezepte'){RSELM=false;RSEL=new Set()}$('#sheets').innerHTML='';view=d.v;if(['liste','rezepte','woche','snacks','drogerie'].includes(view))LS.set('view',view);render();scrollTo(0,0)};
 
 function render(){
  const y=scrollY;
@@ -529,7 +537,7 @@ function newZutatDialog(name,typ,cb,defKat){
 
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
-const recCard=(r,set,w)=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div>${set?`<input type="checkbox" class="rchk" data-a="wtog" data-w="${w}" data-id="${r.id}" ${set.has(r.id)?'checked':''} aria-label="Auswählen">`:`<button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button>`}</div>`;
+const recCard=(r,set,w)=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div>${set?`<input type="checkbox" class="rchk" data-a="${w==='R'?'rsel':'wtog'}" data-w="${w}" data-id="${r.id}" ${set.has(r.id)?'checked':''} aria-label="Auswählen">`:`<button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button>`}</div>`;
 function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
  if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
  if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
@@ -546,7 +554,7 @@ const rlist=(o)=>{o=o||{};const F=o.F||RF,Q=o.q!=null?o.q:RQ,ck=o.ck||'rec_close
  if(!rs.length)return`<div class="empty">${(Q||act)?'Nichts gefunden.':(o.set?'Keine Rezepte vorhanden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.')}</div>`;
  const closed=LS.get(ck,{});const cats=[...REZ_KAT];for(const r of rs){const k=r.kat||'Sonstiges';if(!cats.includes(k))cats.push(k)}
  return cats.map(k=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===k);if(!its.length)return'';const cl=!q&&!act&&closed[k];
-  return`<div class="cat rch" data-a="rtogk" data-k="${esc(k)}" data-s="${o.set?'w':'r'}"><span>${cl?'▸':'▾'} ${esc(k)}</span><span>${its.length}</span></div>`+(cl?'':its.map(r=>recCard(r,o.set,o.w)).join(''))}).join('')};
+  return`<div class="cat rch" data-a="rtogk" data-k="${esc(k)}" data-s="${o.set&&o.w!=='R'?'w':'r'}"><span>${cl?'▸':'▾'} ${esc(k)}</span><span>${its.length}</span></div>`+(cl?'':its.map(r=>recCard(r,o.set,o.w)).join(''))}).join('')};
 const meId=()=>ME.toLowerCase();
 const ratingOf=(rid,u)=>{const b=live(DB.bewertungen).find(x=>x.rid===rid&&x.user===u);return b?b.sterne:0};
 function avgRating(rid){const bs=live(DB.bewertungen).filter(x=>x.rid===rid);return bs.length?bs.reduce((a,x)=>a+x.sterne,0)/bs.length:0}
@@ -566,9 +574,10 @@ A.rfclr=d=>{if(d.s==='w')WF={tm:false,schnell:false,min:0,who:WF.who,sel:false};
 A.rate=(d,b)=>{const u=meId(),id=RD.id+'|'+u,n=+d.n;let x=DB.bewertungen.find(y=>y.id===id);
  if(x&&!x.d&&x.sterne===n){x.d=true;x.u=now()}else if(x){x.sterne=n;x.d=false;x.u=now()}else DB.bewertungen.push({id,rid:RD.id,user:u,sterne:n,u:now()});
  persist();drawRec(b.closest('.ov'))};
-A.rtogk=d=>{const W=d.s==='w',ck=W?'w_closed':'rec_closed',c=LS.get(ck,{});c[d.k]=!c[d.k];LS.set(ck,c);if(W)wRefresh();else $('#rlist').innerHTML=rlist()};
-function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div>${filterBar()}<div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
-IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist()};
+A.rtogk=d=>{const W=d.s==='w',ck=W?'w_closed':'rec_closed',c=LS.get(ck,{});c[d.k]=!c[d.k];LS.set(ck,c);if(W)wRefresh();else $('#rlist').innerHTML=rlist(RSELM?{set:RSEL,w:'R'}:undefined)};
+function rBar(){return RSELM?`<div class="note"><b id="rsc">${RSEL.size}</b> markiert<div class="row" style="margin-top:8px"><button class="ib" data-a="rcheck">🔍 Auf Standardgrößen prüfen</button><button class="ib" data-a="rselall">Alle</button><button class="ib" data-a="rselx">Abbrechen</button></div></div>`:''}
+function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div>${filterBar()}<div id="rbar">${rBar()}</div><div id="rlist">${rlist(RSELM?{set:RSEL,w:'R'}:undefined)}</div>${RSELM?'':'<button class="fab" data-a="newrec">＋</button>'}`}
+IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist(RSELM?{set:RSEL,w:'R'}:undefined)};
 A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="rectext"><span>📋</span>Text einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto, Link und Text nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
 A.rectext=()=>{closeSheet();openTextImport('')};
 A.recman=()=>{closeSheet();openEditor(null)};
@@ -576,14 +585,15 @@ A.recphoto=d=>{closeSheet();const i=document.createElement('input');i.type='file
 A.reclink=()=>{closeSheet();ask('Rezept-Link','',u=>importFlow(()=>importLink(u)),'https://…')};
 async function importFlow(fn){const done=busy('Rezept wird gelesen …');try{const r=await fn();done();openEditor(r)}catch(e){done();if(e.fetchFail)return fetchFailSheet(e);toast(e.message||String(e))}}
 
-A.openrec=d=>{const r=Rz(d.id);RD={id:r.id,por:recStd(r),lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
+A.openrec=d=>{if(RSELM){RSEL.has(d.id)?RSEL.delete(d.id):RSEL.add(d.id);$('#rlist').innerHTML=rlist({set:RSEL,w:'R'});$('#rsc').textContent=RSEL.size;return}
+ const r=Rz(d.id);RD={id:r.id,por:recStd(r),lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
 function ratingRows(rid){const me=meId();const us=live(DB.nutzer).slice().sort((a,b)=>(b.id===me)-(a.id===me)||a.name.localeCompare(b.name,'de'));if(!us.some(u=>u.id===me))us.unshift({id:me,name:ME});
  return us.map(u=>{const v=ratingOf(rid,u.id),own=u.id===me;return`<div class="srow"><span>${esc(u.name)}${own?' <small style="display:inline">(du)</small>':''}</span><span class="stars">${[1,2,3,4,5].map(n=>`<button class="star ${n<=v?'on':''}" data-a="rate" data-n="${n}" ${own?'':'disabled'} aria-label="${n} Sterne">★</button>`).join('')}</span></div>`}).join('')}
 function drawRec(el){const r=Rz(RD.id);const f=RD.por/r.portionen;
  el.querySelector('.shb').innerHTML=`${IMGC[r.id]?`<img class="hero" alt="" src="${IMGC[r.id]}">`:''}${r.tm?'<span class="lad" style="margin:0 6px 4px 0">Thermomix-Rezept</span>':''}${r.schnell?'<span class="lad" style="margin:0 6px 4px 0">⚡ Schnell</span>':''}
  <div class="cat" style="margin-top:6px">Bewertung</div>${ratingRows(r.id)}
  <div class="cat" style="margin-top:10px">Portionen</div><div class="chips">${[1,2,3,4,5,6].map(n=>`<button class="chip ${RD.por===n?'on':''}" data-a="rpset" data-n="${n}">${n}${recStd(r)===n?' ★':''}</button>`).join('')}</div><div class="row" style="justify-content:space-between"><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span>${RD.por===recStd(r)?'<span class="mu">★ Standard</span>':`<button class="lnk" data-a="rstd">★ ${RD.por} als Standard festlegen</button>`}</div>
- <div class="cat">Zutaten</div>${r.zutaten.map(x=>{const z=Z(x.zid);return`<div class="srow"><span>${esc(z?z.name:x.n||'?')}</span><span>${x.menge==null?'':esc(fmtQty(toBase(x.menge*f,x.einheit),fam(x.einheit)))}</span></div>`}).join('')}
+ <div class="cat">Zutaten</div>${r.zutaten.map(x=>{const z=Z(x.zid);return`<div class="srow"><span>${esc(z?z.name:x.n||'?')}${x.orig?` <small style="display:inline" class="mu">(Original: ${esc(x.orig)})</small>`:''}</span><span>${x.menge==null?'':esc(fmtQty(toBase(x.menge*f,x.einheit),fam(x.einheit)))}</span></div>`}).join('')}
  ${r.schritte?`<div class="cat">Zubereitung</div><ol style="padding-left:20px;margin:6px 0">${r.schritte.split(/\n+/).filter(s=>s.trim()).map(s=>`<li style="margin-bottom:6px">${esc(s)}</li>`).join('')}</ol>`:''}
  ${r.quelle?`<p class="mu">Quelle: ${/^https?:\/\//.test(r.quelle)?`<a href="${esc(r.quelle)}" target="_blank" rel="noopener">${esc(r.quelle)}</a>`:esc(r.quelle)}</p>`:''}
  <label class="lb">Zur Liste</label><select class="srch" data-in="rlid">${lists('markt').map(l=>`<option value="${l.id}" ${l.id===RD.lid?'selected':''}>${esc(l.name)}</option>`).join('')}</select>
@@ -600,17 +610,57 @@ A.rquick=d=>{const r=Rz(d.id);if(!r||!r.zutaten.length){toast('Dieses Rezept hat
 A.redit=(d,b)=>{const r=Rz(RD.id);closeSheet(b.closest('.ov'));openEditor(r)};
 A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id);r.d=true;r.u=now();closeSheet(b.closest('.ov'));persist()};
 
+/* ---- Auswahlmodus & Prüfung bestehender Rezepte ---- */
+A.rsel=(d,el)=>{el.checked?RSEL.add(d.id):RSEL.delete(d.id);$('#rsc').textContent=RSEL.size};
+A.rselx=()=>{RSELM=false;RSEL=new Set();render()};
+A.rselall=()=>{const q=RQ.toLowerCase().trim();for(const r of live(DB.rezepte))if(recFilter(r)&&(!q||recText(r).includes(q)))RSEL.add(r.id);$('#rlist').innerHTML=rlist({set:RSEL,w:'R'});$('#rsc').textContent=RSEL.size};
+const LP={t:null,fired:false,x:0,y:0};
+document.addEventListener('pointerdown',e=>{const c=e.target.closest&&e.target.closest('.rc[data-id]');if(!c||view!=='rezepte'||RSELM||e.target.closest('.rplus'))return;LP.x=e.clientX;LP.y=e.clientY;clearTimeout(LP.t);
+ LP.t=setTimeout(()=>{LP.fired=true;RSELM=true;RSEL=new Set([c.dataset.id]);if(navigator.vibrate)try{navigator.vibrate(30)}catch(x){}render()},550)});
+for(const ev of ['pointerup','pointercancel','scroll'])document.addEventListener(ev,()=>{clearTimeout(LP.t);if(LP.fired)setTimeout(()=>LP.fired=false,120)},true);
+document.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-LP.x)>10||Math.abs(e.clientY-LP.y)>10)clearTimeout(LP.t)});
+document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.rc'))e.preventDefault()});
+document.addEventListener('click',e=>{if(LP.fired){e.stopPropagation();e.preventDefault();LP.fired=false}},true);
+function stdFindings(ids){const out=[];for(const id of ids){const r=Rz(id);if(!r)continue;r.zutaten.forEach(x=>{const z=Z(x.zid);if(!z||!z.eh||!x.einheit||!(x.menge>0)||fam(x.einheit)===fam(z.eh))return;out.push({r,x,z,st:0,cv:null})})}return out}
+A.rcheck=()=>{if(!RSEL.size)return toast('Bitte erst Rezepte markieren');FIND=stdFindings([...RSEL]);if(!FIND.length)return toast('Alle markierten Rezepte nutzen schon die Standardgrößen ✅');
+ const el=sheet('Standardgrößen prüfen','');drawFind(el)};
+function drawFind(el){const open=FIND.filter(f=>!f.st).length;let last='',h='';
+ FIND.forEach((f,i)=>{const{r,x,z}=f;if(r.id!==last){h+=`<div class="cat" style="margin-top:10px">${esc(r.titel)}</div>`;last=r.id}
+  const v=convStd(z,x.menge,x.einheit);if(f.cv==null||f.cvFor!==x.menge+x.einheit){f.cv=v==null?'':fmtNum(v);f.cvFor=x.menge+x.einheit}
+  const lbl=`<b>${esc(z.name)}</b>: ${esc(fmtNum(x.menge))} ${esc(x.einheit)}`;
+  if(f.st===1)h+=`<div class="srow mu"><span>✓ ${esc(z.name)}: ${esc(fmtNum(x.menge))} ${esc(x.einheit)}${x.orig?' (Original '+esc(x.orig)+')':''}</span></div>`;
+  else if(f.st===2)h+=`<div class="srow mu"><span>– ${lbl} (so gelassen)</span></div>`;
+  else if(v==null)h+=`<div class="stdh"><span>${lbl} – Standardgröße ist <b>${esc(z.eh)}</b>, noch keine Umrechnung.</span><div class="row"><button class="ib" data-a="fdask" data-i="${i}">Faktor eingeben</button><button class="ib" data-a="fdno" data-i="${i}">Überspringen</button></div></div>`;
+  else h+=`<div class="stdh"><span>${lbl} → <input class="q" inputmode="decimal" data-fd="${i}" value="${esc(f.cv)}"> <b>${esc(z.eh)}</b></span><div class="row"><button class="ib" data-a="fdok" data-i="${i}">✓ Übernehmen</button><button class="ib" data-a="fdno" data-i="${i}">Überspringen</button></div></div>`});
+ el.querySelector('.shb').innerHTML=`<p class="mu">Gelb markiert: Einheit weicht von der Standardgröße ab. Vorschläge sind aufgerundet und änderbar.</p>${h}${FIND.some(f=>!f.st&&convStd(f.z,f.x.menge,f.x.einheit)!=null)?'<button class="btn" data-a="fdall">✓ Alle Vorschläge übernehmen</button>':''}<button class="btn sec" data-a="fdclose">Fertig</button>`}
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.fd!==undefined&&FIND[+t.dataset.fd])FIND[+t.dataset.fd].cv=t.value});
+function fdApply(f,n){const{r,x,z}=f;x.orig=fmtNum(x.menge)+' '+x.einheit;x.menge=n;x.einheit=z.eh;r.u=now();f.st=1}
+A.fdok=(d,b)=>{const f=FIND[+d.i],n=parseNum(f.cv);if(!(n>0))return toast('Bitte eine Menge eingeben');fdApply(f,n);persist(true);drawFind(b.closest('.ov'))};
+A.fdno=(d,b)=>{FIND[+d.i].st=2;drawFind(b.closest('.ov'))};
+A.fdall=(d,b)=>{let c=0;for(const f of FIND)if(!f.st){const n=parseNum(f.cv);if(n>0&&convStd(f.z,f.x.menge,f.x.einheit)!=null){fdApply(f,n);c++}}persist(true);drawFind(b.closest('.ov'));toast(c+' Zutaten umgerechnet')};
+A.fdask=(d,b)=>{const f=FIND[+d.i],{x,z}=f,ov=b.closest('.ov');ask('Wie viele '+x.einheit+' entsprechen 1 '+z.eh+' „'+z.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');z.umr=[...(z.umr||[]),{a:n,ua:x.einheit,b:1,ub:z.eh}];z.u=now();persist(true);for(const g of FIND)g.cv=null;drawFind(ov);toast('Umrechnung gespeichert')},'z. B. 150')};
+A.fdclose=(d,b)=>{closeSheet(b.closest('.ov'));render()};
+
 /* ---- Rezept-Editor ---- */
 function openEditor(r){
  if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut,_img:r.img,kat:r.kat,tm:r.tm,schnell:r.schnell};
- ED=r?{id:r.id,titel:r.titel,portionen:r._zut?r.portionen:recStd(r),schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge*recF(r)),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
+ ED=r?{id:r.id,titel:r.titel,portionen:r._zut?r.portionen:recStd(r),schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge*recF(r)),einheit:x.einheit||'',orig:x.orig||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
  if(!ED.zut.length)ED.zut=[{}];
  ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);ED.kat=(r&&r.kat)||'';ED.tm=!!(r&&r.tm);ED.schnell=!!(r&&r.schnell);
  if(r&&!r.id)delete ED.id;
  ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
+function stdInfo(x){if(ED.id||x.skip||!x.zid||!x.einheit)return null;const z=Z(x.zid);if(!z||!z.eh)return null;const m=parseNum(x.menge);if(!(m>0))return null;if(fam(x.einheit)===fam(z.eh))return null;return{z,m}}
+function stdHint(x,i){const t=stdInfo(x);if(!t)return'';const {z,m}=t,u=x.einheit;
+ const v=convStd(z,m,u);
+ if(v==null)return`<div class="stdh"><span>Standardgröße von „${esc(z.name)}“ ist <b>${esc(z.eh)}</b>, das Rezept nennt <b>${esc(fmtNum(m))} ${esc(u)}</b>. Umrechnen?</span><div class="row"><button class="ib" data-a="stdask" data-idx="${i}">Ja, Faktor eingeben</button><button class="ib" data-a="stdno" data-idx="${i}">Nein, so lassen</button></div></div>`;
+ if(x.cv===undefined||x.cv==='')x.cv=fmtNum(v);
+ return`<div class="stdh"><span>in der Standardgröße: <input class="q" inputmode="decimal" data-ed="cv" data-idx="${i}" value="${esc(x.cv)}"> <b>${esc(z.eh)}</b> <small style="display:inline">(aufgerundet aus ${esc(fmtNum(m))} ${esc(u)})</small></span><div class="row"><button class="ib" data-a="stdok" data-idx="${i}">✓ Übernehmen</button><button class="ib" data-a="stdno" data-idx="${i}">Original behalten</button></div></div>`}
+A.stdok=d=>{const x=ED.zut[+d.idx],z=Z(x.zid),n=parseNum(x.cv);if(!(n>0))return toast('Bitte eine Menge eingeben');x.orig=fmtNum(parseNum(x.menge))+' '+x.einheit;x.menge=fmtNum(n);x.einheit=z.eh;x.cv=undefined;drawEditor()};
+A.stdno=d=>{ED.zut[+d.idx].skip=1;drawEditor()};
+A.stdask=d=>{const x=ED.zut[+d.idx],z=Z(x.zid);ask('Wie viele '+x.einheit+' entsprechen 1 '+z.eh+' „'+z.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');z.umr=[...(z.umr||[]),{a:n,ua:x.einheit,b:1,ub:z.eh}];z.u=now();persist(true);x.cv=undefined;drawEditor();toast('Umrechnung gespeichert: '+fmtNum(n)+' '+x.einheit+' = 1 '+z.eh)},'z. B. 150')};
 function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
  el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Mengen gelten für … Portionen (Standard)</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="chk"><input type="checkbox" data-a="edtm" ${s.tm?'checked':''}><span>🥣 Thermomix-Rezept</span></label><label class="chk"><input type="checkbox" data-a="edsn" ${s.schnell?'checked':''}><span>⚡ Schnell (schnell zubereitet)</span></label><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
- ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>`).join('')}
+ ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>${x.orig?`<small class="mu" style="display:block;margin:-2px 0 6px">umgerechnet, Original: ${esc(x.orig)}</small>`:''}${stdHint(x,i)}`).join('')}
  <button class="lnk" data-a="edadd">＋ Zutat hinzufügen</button>
  <label class="lb">Zubereitung (ein Schritt pro Zeile)</label><textarea class="srch" rows="6" data-ed="schritte">${esc(s.schritte)}</textarea><label class="lb">Quelle / Link</label><input class="srch" data-ed="quelle" value="${esc(s.quelle)}">
  <button class="btn" data-a="edsave">Speichern</button>${s.id?`<button class="btn dng" data-a="recdel" data-id="${s.id}">Rezept löschen</button>`:''}`;
@@ -626,7 +676,7 @@ A.edsave=()=>{
  const s=ED;if(!String(s.titel||'').trim())return toast('Bitte einen Titel eingeben');
  const zut=[];for(const x of s.zut){let z=x.zid?Z(x.zid):null;
   if(!z&&x.name&&x.name.trim()){z=findZutat(x.name);if(!z){const cs=catsOf('markt');z={id:uid(),name:x.name.trim(),kat:cs.includes(x.sug)?x.sug:'Sonstiges',eh:x.einheit||'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}}
-  if(z)zut.push({zid:z.id,n:z.name,menge:parseNum(x.menge),einheit:x.einheit||''})}
+  if(z)zut.push({zid:z.id,n:z.name,menge:parseNum(x.menge),einheit:x.einheit||'',...(x.orig?{orig:x.orig}:{})})}
  const id=s.id||uid();let bild=s.bild||0;
  if(s.imgChanged){if(s.img){bild=now();IMGC[id]=s.img;IMGM[id]={v:bild,data:s.img,up:true};IMG.set(id,IMGM[id])}else{bild=0;delete IMGC[id];delete IMGM[id];IMG.del(id)}}
  const por=Math.max(1,parseInt(s.portionen)||4);const r={id,titel:String(s.titel).trim(),portionen:por,std:por,tm:!!s.tm,schnell:!!s.schnell,zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,kat:s.kat||guessRecKat(String(s.titel),zut.map(x=>Z(x.zid)?.name||'')),u:now()};
@@ -721,10 +771,13 @@ function viewZut(){const nd=dupCandidates().length;return`<div class="bar"><butt
 IN.zsearch=v=>{ZQ=v;$('#zlist').innerHTML=zlist()};
 A.znew=()=>{const el=sheet('Neuer Artikel',`<div class="seg"><button data-a="znt" data-t="markt">Einkauf</button><button data-a="znt" data-t="drogerie">Drogerie</button></div>`)};
 A.znt=(d,b)=>{closeSheet(b.closest('.ov'));ask('Name des Artikels','',n=>newZutatDialog(n,d.t,()=>persist()))};
+const urRow=r=>`<div class="erow ur"><input class="q ura" inputmode="decimal" value="${esc(r.a==null?'':fmtNum(r.a))}"><select class="u uru">${UNITS.map(u=>`<option ${u===r.ua?'selected':''}>${u}</option>`).join('')}</select><span>=</span><input class="q urb" inputmode="decimal" value="${esc(r.b==null?'':fmtNum(r.b))}"><select class="u urv">${UNITS.map(u=>`<option ${u===r.ub?'selected':''}>${u}</option>`).join('')}</select><button class="ib" data-a="urrm">✕</button></div>`;
+A.uradd=(d,b)=>{const z=Z(d.id);b.closest('.ov').querySelector('#urs').insertAdjacentHTML('beforeend',urRow({a:'',ua:'g',b:1,ub:b.closest('.ov').querySelector('[name=e]').value||z.eh}))};
+A.urrm=(d,b)=>b.closest('.ur').remove();
 A.zedit=d=>{const z=Z(d.id);
- sheet(z.name,`<label class="lb">Name</label><input class="srch" name="n" value="${esc(z.name)}"><label class="lb">Auch bekannt als (Komma-getrennt, z. B. „gelbe Paprika“)</label><input class="srch" name="a" value="${esc((z.alias||[]).join(', '))}"><label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(z.typ).map(k=>`<option ${k===z.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Wo gibt es das?</label><input class="srch" name="l" value="${esc(z.laden||'')}"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select><label class="chk"><input type="checkbox" name="v" ${z.vorrat?'checked':''}><span>🏠 Vorrat – haben wir normalerweise da (Rezept-Zutaten landen dann unter „Haben wir schon?“)</span></label><button class="btn" data-a="zsave" data-id="${z.id}">Speichern</button><button class="btn sec" data-a="zmerge" data-id="${z.id}">🔀 Mit anderem Artikel zusammenführen</button><button class="btn dng" data-a="zdel" data-id="${z.id}">Löschen</button>`)};
+ sheet(z.name,`<label class="lb">Name</label><input class="srch" name="n" value="${esc(z.name)}"><label class="lb">Auch bekannt als (Komma-getrennt, z. B. „gelbe Paprika“)</label><input class="srch" name="a" value="${esc((z.alias||[]).join(', '))}"><label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(z.typ).map(k=>`<option ${k===z.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Wo gibt es das?</label><input class="srch" name="l" value="${esc(z.laden||'')}"><label class="lb">Standardgröße (Einheit, in der dieser Artikel üblicherweise angegeben wird)</label><select class="srch" name="e">${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select><label class="lb">Umrechnung in die Standardgröße</label><div id="urs">${(z.umr||[]).map(urRow).join('')}</div><button class="lnk" data-a="uradd" data-id="${z.id}">＋ Umrechnung hinzufügen</button><p class="mu">Beispiel: 150 g = 1 Stück. Beim Einlesen eines neuen Rezepts rechnet die App damit um und rundet im Zweifel auf (200 g → 2 Stück).</p><label class="chk"><input type="checkbox" name="v" ${z.vorrat?'checked':''}><span>🏠 Vorrat – haben wir normalerweise da (Rezept-Zutaten landen dann unter „Haben wir schon?“)</span></label><button class="btn" data-a="zsave" data-id="${z.id}">Speichern</button><button class="btn sec" data-a="zmerge" data-id="${z.id}">🔀 Mit anderem Artikel zusammenführen</button><button class="btn dng" data-a="zdel" data-id="${z.id}">Löschen</button>`)};
 A.zsave=(d,b)=>{const el=b.closest('.ov'),z=Z(d.id),f=n=>el.querySelector(`[name=${n}]`).value.trim();if(!f('n'))return;
- z.name=f('n');z.alias=f('a').split(',').map(s=>s.trim()).filter(Boolean);z.kat=f('k');z.laden=f('l');z.eh=f('e');z.vorrat=el.querySelector('[name=v]').checked;z.u=now();closeSheet(el);persist()};
+ z.name=f('n');z.alias=f('a').split(',').map(s=>s.trim()).filter(Boolean);z.kat=f('k');z.laden=f('l');z.eh=f('e');z.umr=[...el.querySelectorAll('.ur')].map(r=>({a:parseNum(r.querySelector('.ura').value),ua:r.querySelector('.uru').value,b:parseNum(r.querySelector('.urb').value),ub:r.querySelector('.urv').value})).filter(r=>r.a>0&&r.b>0&&fam(r.ua)!==fam(r.ub));z.vorrat=el.querySelector('[name=v]').checked;z.u=now();closeSheet(el);persist()};
 const lev=(a,b)=>{const m=[...Array(a.length+1)].map((_,i)=>[i]);for(let j=1;j<=b.length;j++)m[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length]};
 function dupCandidates(){const zs=live(DB.zutaten),ign=LS.get('dup_ign',{}),out=[];const norm=z=>z.name.toLowerCase().replace(/[^a-zäöüß]/g,'');
  for(let i=0;i<zs.length;i++)for(let j=i+1;j<zs.length;j++){const a=zs[i],b=zs[j];if(a.typ!==b.typ||ign[a.id+'|'+b.id]||ign[b.id+'|'+a.id])continue;const x=norm(a),y=norm(b);if(!x||!y)continue;
