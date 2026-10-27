@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.3.1';
+const VERSION='1.3.2';
 const CHANGELOG=[
+{v:'1.3.2',d:'27.10.2026',t:['Standardgröße lässt sich direkt in der Prüfung (bestehende und neue Rezepte) ändern; passt die Einheit danach, ist die Zutat erledigt']},
 {v:'1.3.1',d:'27.10.2026',t:['Bestehende Rezepte auf Standardgrößen prüfen: in der Rezeptübersicht ein Rezept lange gedrückt halten, weitere per Checkbox markieren und „Auf Standardgrößen prüfen“ wählen']},
 {v:'1.3.0',d:'27.10.2026',t:['Standardgröße je Lebensmittel mit einstellbaren Umrechnungsregeln (z. B. 150 g = 1 Stück)','Beim Anlegen eines neuen Rezepts (Foto, Link, Text, manuell) erkennt die App abweichende Einheiten, markiert sie, schlägt die Menge in der Standardgröße vor (im Zweifel aufgerundet, änderbar) und fragt, ob sie übernommen werden soll; ohne Regel fragt sie nach dem Faktor und merkt ihn sich']},
 {v:'1.2.1',d:'27.10.2026',t:['Benachrichtigungen zur Wochenplanung für alle drei Schritte mit neuen Texten (Vorschläge → raussuchen → Einkaufsliste kontrollieren → einkaufen gehen)']},
@@ -629,9 +630,10 @@ function drawFind(el){const open=FIND.filter(f=>!f.st).length;let last='',h='';
   const v=convStd(z,x.menge,x.einheit);if(f.cv==null||f.cvFor!==x.menge+x.einheit){f.cv=v==null?'':fmtNum(v);f.cvFor=x.menge+x.einheit}
   const lbl=`<b>${esc(z.name)}</b>: ${esc(fmtNum(x.menge))} ${esc(x.einheit)}`;
   if(f.st===1)h+=`<div class="srow mu"><span>✓ ${esc(z.name)}: ${esc(fmtNum(x.menge))} ${esc(x.einheit)}${x.orig?' (Original '+esc(x.orig)+')':''}</span></div>`;
+  else if(f.st===3)h+=`<div class="srow mu"><span>✓ ${esc(z.name)}: Standardgröße jetzt ${esc(z.eh)} (${esc(fmtNum(x.menge))} ${esc(x.einheit)} passt)</span></div>`;
   else if(f.st===2)h+=`<div class="srow mu"><span>– ${lbl} (so gelassen)</span></div>`;
-  else if(v==null)h+=`<div class="stdh"><span>${lbl} – Standardgröße ist <b>${esc(z.eh)}</b>, noch keine Umrechnung.</span><div class="row"><button class="ib" data-a="fdask" data-i="${i}">Faktor eingeben</button><button class="ib" data-a="fdno" data-i="${i}">Überspringen</button></div></div>`;
-  else h+=`<div class="stdh"><span>${lbl} → <input class="q" inputmode="decimal" data-fd="${i}" value="${esc(f.cv)}"> <b>${esc(z.eh)}</b></span><div class="row"><button class="ib" data-a="fdok" data-i="${i}">✓ Übernehmen</button><button class="ib" data-a="fdno" data-i="${i}">Überspringen</button></div></div>`});
+  else if(v==null)h+=`<div class="stdh"><span>${lbl} – Standardgröße ist <b>${esc(z.eh)}</b>, noch keine Umrechnung.</span><div class="row"><button class="ib" data-a="fdask" data-i="${i}">Faktor eingeben</button><button class="ib" data-a="fdno" data-i="${i}">Überspringen</button></div>${ehSel(z,'data-fds="'+i+'"')}</div>`;
+  else h+=`<div class="stdh"><span>${lbl} → <input class="q" inputmode="decimal" data-fd="${i}" value="${esc(f.cv)}"> <b>${esc(z.eh)}</b></span><div class="row"><button class="ib" data-a="fdok" data-i="${i}">✓ Übernehmen</button><button class="ib" data-a="fdno" data-i="${i}">Überspringen</button></div>${ehSel(z,'data-fds="'+i+'"')}</div>`});
  el.querySelector('.shb').innerHTML=`<p class="mu">Gelb markiert: Einheit weicht von der Standardgröße ab. Vorschläge sind aufgerundet und änderbar.</p>${h}${FIND.some(f=>!f.st&&convStd(f.z,f.x.menge,f.x.einheit)!=null)?'<button class="btn" data-a="fdall">✓ Alle Vorschläge übernehmen</button>':''}<button class="btn sec" data-a="fdclose">Fertig</button>`}
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.fd!==undefined&&FIND[+t.dataset.fd])FIND[+t.dataset.fd].cv=t.value});
 function fdApply(f,n){const{r,x,z}=f;x.orig=fmtNum(x.menge)+' '+x.einheit;x.menge=n;x.einheit=z.eh;r.u=now();f.st=1}
@@ -649,12 +651,17 @@ function openEditor(r){
  ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);ED.kat=(r&&r.kat)||'';ED.tm=!!(r&&r.tm);ED.schnell=!!(r&&r.schnell);
  if(r&&!r.id)delete ED.id;
  ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
+const ehSel=(z,attr)=>`<label class="mu" style="display:block;margin-top:6px;font-size:13px">Standardgröße von „${esc(z.name)}“ ändern auf: <select class="srch" style="width:auto;display:inline-block;padding:4px 8px" ${attr}>${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select></label>`;
+function setEh(z,v){z.eh=v;z.u=now();persist(true)}
+document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;
+ if(t.dataset.eds!==undefined&&ED){const x=ED.zut[+t.dataset.eds];setEh(Z(x.zid),t.value);for(const y of ED.zut)y.cv=undefined;drawEditor();toast('Standardgröße geändert auf '+t.value)}
+ else if(t.dataset.fds!==undefined&&FIND[+t.dataset.fds]){const z=FIND[+t.dataset.fds].z;setEh(z,t.value);for(const f of FIND){f.cv=null;if(f.z===z&&!f.st&&fam(f.x.einheit)===fam(z.eh))f.st=3}drawFind(t.closest('.ov'));toast('Standardgröße geändert auf '+t.value)}});
 function stdInfo(x){if(ED.id||x.skip||!x.zid||!x.einheit)return null;const z=Z(x.zid);if(!z||!z.eh)return null;const m=parseNum(x.menge);if(!(m>0))return null;if(fam(x.einheit)===fam(z.eh))return null;return{z,m}}
 function stdHint(x,i){const t=stdInfo(x);if(!t)return'';const {z,m}=t,u=x.einheit;
  const v=convStd(z,m,u);
- if(v==null)return`<div class="stdh"><span>Standardgröße von „${esc(z.name)}“ ist <b>${esc(z.eh)}</b>, das Rezept nennt <b>${esc(fmtNum(m))} ${esc(u)}</b>. Umrechnen?</span><div class="row"><button class="ib" data-a="stdask" data-idx="${i}">Ja, Faktor eingeben</button><button class="ib" data-a="stdno" data-idx="${i}">Nein, so lassen</button></div></div>`;
+ if(v==null)return`<div class="stdh"><span>Standardgröße von „${esc(z.name)}“ ist <b>${esc(z.eh)}</b>, das Rezept nennt <b>${esc(fmtNum(m))} ${esc(u)}</b>. Umrechnen?</span><div class="row"><button class="ib" data-a="stdask" data-idx="${i}">Ja, Faktor eingeben</button><button class="ib" data-a="stdno" data-idx="${i}">Nein, so lassen</button></div>${ehSel(z,'data-eds="'+i+'"')}</div>`;
  if(x.cv===undefined||x.cv==='')x.cv=fmtNum(v);
- return`<div class="stdh"><span>in der Standardgröße: <input class="q" inputmode="decimal" data-ed="cv" data-idx="${i}" value="${esc(x.cv)}"> <b>${esc(z.eh)}</b> <small style="display:inline">(aufgerundet aus ${esc(fmtNum(m))} ${esc(u)})</small></span><div class="row"><button class="ib" data-a="stdok" data-idx="${i}">✓ Übernehmen</button><button class="ib" data-a="stdno" data-idx="${i}">Original behalten</button></div></div>`}
+ return`<div class="stdh"><span>in der Standardgröße: <input class="q" inputmode="decimal" data-ed="cv" data-idx="${i}" value="${esc(x.cv)}"> <b>${esc(z.eh)}</b> <small style="display:inline">(aufgerundet aus ${esc(fmtNum(m))} ${esc(u)})</small></span><div class="row"><button class="ib" data-a="stdok" data-idx="${i}">✓ Übernehmen</button><button class="ib" data-a="stdno" data-idx="${i}">Original behalten</button></div>${ehSel(z,'data-eds="'+i+'"')}</div>`}
 A.stdok=d=>{const x=ED.zut[+d.idx],z=Z(x.zid),n=parseNum(x.cv);if(!(n>0))return toast('Bitte eine Menge eingeben');x.orig=fmtNum(parseNum(x.menge))+' '+x.einheit;x.menge=fmtNum(n);x.einheit=z.eh;x.cv=undefined;drawEditor()};
 A.stdno=d=>{ED.zut[+d.idx].skip=1;drawEditor()};
 A.stdask=d=>{const x=ED.zut[+d.idx],z=Z(x.zid);ask('Wie viele '+x.einheit+' entsprechen 1 '+z.eh+' „'+z.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');z.umr=[...(z.umr||[]),{a:n,ua:x.einheit,b:1,ub:z.eh}];z.u=now();persist(true);x.cv=undefined;drawEditor();toast('Umrechnung gespeichert: '+fmtNum(n)+' '+x.einheit+' = 1 '+z.eh)},'z. B. 150')};
