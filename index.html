@@ -86,6 +86,7 @@ textarea.srch{resize:vertical}
 .rc{display:flex;gap:10px;align-items:center}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
 .rch{display:flex;justify-content:space-between;cursor:pointer;padding:10px 4px 4px;margin-top:10px;color:var(--tx)}
 .grp{display:block}.gh{display:flex;justify-content:space-between;gap:8px;margin-bottom:2px}.gs{color:var(--ac);font-weight:600;font-size:14px}.prt{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}.prt .nm small{display:inline;margin-left:6px}
+.stars{display:flex;gap:2px}.star{border:0;background:none;font-size:27px;line-height:1;padding:2px 3px;color:var(--bd)}.star.on{color:#f5b301}.star:disabled{opacity:.75}
 .seg{display:flex;gap:0;margin-bottom:8px}.seg button{flex:1;border:1px solid var(--bd);background:var(--card);padding:9px}
 .seg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 </style>
@@ -97,9 +98,11 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.7';
+const VERSION='1.0.9';
 const CHANGELOG=[
-{v:'1.0.7',d:'27.10.2026',t:['Archiv: abgeschlossene Wochenplanungen werden automatisch gespeichert (wer die Vorschläge gemacht hat, wer ausgewählt hat, jeweils mit Datum und Uhrzeit, gewählte und nicht gewählte Rezepte); Einträge lassen sich löschen (mit Rückgängig). Zu finden unter Woche → Archiv und im Menü Mehr']},
+{v:'1.0.9',d:'27.10.2026',t:['Bewertungen: jede Person bewertet Rezepte getrennt mit 1–5 Sternen (Tippen auf den gleichen Stern entfernt die Bewertung); Durchschnitt in der Rezeptübersicht','Neues Flag „⚡ Schnell“ für schnell zubereitete Rezepte (beim Import automatisch erkannt: bis 30 Minuten)','Rezeptliste filterbar nach Thermomix, Schnell und Bewertung (Ø aller, nur eine Person oder von allen, ab 3/4/5 Sternen)']},
+ {v:'1.0.8',d:'27.10.2026',t:['Thermomix-Rezepte: Haken im Rezept, „Thermomix“ neben den Portionen in der Rezeptübersicht, Filter „Thermomix“ in der Rezeptliste; beim Import erkennt Claude Thermomix-Rezepte automatisch']},
+ {v:'1.0.7',d:'27.10.2026',t:['Archiv: abgeschlossene Wochenplanungen werden automatisch gespeichert (wer die Vorschläge gemacht hat, wer ausgewählt hat, jeweils mit Datum und Uhrzeit, gewählte und nicht gewählte Rezepte); Einträge lassen sich löschen (mit Rückgängig). Zu finden unter Woche → Archiv und im Menü Mehr']},
  {v:'1.0.6',d:'27.10.2026',t:['Rezepte skalierbar: Portionen 1–6 (oder beliebig per +/−) zum Hochrechnen, eine Standardportion lässt sich festlegen (★); Mengen im Editor gelten für die Standardportion und werden ab dann daraus skaliert','Snacks der Freunde: Namen einklappbar (Alle auf / Alle zu)','Einstellung: Fleisch & Fisch nicht zusammenrechnen – Posten je Rezept, z. B. „600 g + 400 g“, einzeln abhakbar']},
  {v:'1.0.5',d:'26.10.2026',t:['Rezeptbilder deutlich schärfer (höhere Auflösung, beim Link-Import wird das größte verfügbare Bild gewählt)','Rezepte in Kategorien (Frühstück, Suppen, Salate, Pasta, Fleisch & Fisch, Vegetarisch, Beilagen, Backen, Sonstiges), ein- und ausklappbar; Kategorie wird automatisch vorgeschlagen und lässt sich im Rezept ändern']},
  {v:'1.0.4',d:'26.10.2026',t:['Snacks: Import einer Textliste („Name: Snack, Snack“) mit Vorschau – die Daten werden nur in die eigene Dropbox-Datenbank geschrieben, nicht in den App-Code']},
@@ -163,13 +166,13 @@ function freshDB(){
 
 /* =====================  Zustand  ===================== */
 let DB=LS.get('einkauf_db',null)||freshDB();
-for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv'])DB[k]=DB[k]||[];
+for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen'])DB[k]=DB[k]||[];
 DB.wochenplan=DB.wochenplan||{id:'wp',status:'leer',u:0};
 DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
 DB.einst=DB.einst||{meatSplit:false,u:0};
 let ME=LS.get('me','');
 let view=LS.get('view','liste');
-const FLT={};let RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WTO='',WPICK=null,WPICKU=0,WTARGET='new';
+const FLT={};let RF=Object.assign({tm:false,schnell:false,min:0,who:'avg'},LS.get('rec_f',{}));let RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WTO='',WPICK=null,WPICKU=0,WTARGET='new';
 let IDX={},ZKEY=new Map();
 function rebuild(){IDX={};ZKEY=new Map();for(const z of DB.zutaten)IDX[z.id]=z;for(const z of DB.zutaten){if(z.d)continue;ZKEY.set(keyOf(z.name),z);for(const a of z.alias||[]){const k=keyOf(a);if(k&&!ZKEY.has(k))ZKEY.set(k,z)}}}
 const Z=id=>IDX[id];
@@ -224,7 +227,7 @@ function mergeArr(a=[],b=[],f){const la=new Map(a.map(x=>[x.id,x])),m=new Map();
  for(const y of b){const x=la.get(y.id);if(!x){m.set(y.id,y);f.down=1}else if((x.u||0)>(y.u||0)){m.set(y.id,x);f.up=1}else{m.set(y.id,y);if((x.u||0)<(y.u||0))f.down=1}}
  for(const x of a)if(!m.has(x.id)){m.set(x.id,x);f.up=1}
  return [...m.values()]}
-const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv'];
+const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen'];
 function mergeDB(l,r){const f={up:0,down:0};const o={...r};for(const k of ARR)o[k]=mergeArr(l[k],r[k],f);
  for(const k of ['wochenplan','katOrder','einst']){const a=l[k],b=r[k];if(!b){o[k]=a;f.up=1}else if(!a){o[k]=b;f.down=1}else if((a.u||0)>(b.u||0)){o[k]=a;f.up=1}else{o[k]=b;if((a.u||0)<(b.u||0))f.down=1}}
  return {db:o,up:f.up,down:f.down}}
@@ -445,7 +448,7 @@ function newZutatDialog(name,typ,cb,defKat){
 
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
-const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen</small></div></div>`;
+const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div></div>`;
 function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
  if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
  if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
@@ -456,13 +459,31 @@ function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLo
  if(/hähnchen|huhn|rind|schwein|lachs|fisch|steak|schnitzel|hack|burger|wurst|garnelen|braten|gyros|pute|ente/.test(t))return'Fleisch & Fisch';
  if(/vegan|vegetar|gemüse|tofu|linsen|kichererbsen|curry|auflauf|ofengemüse/.test(t))return'Vegetarisch & Vegan';
  return'Sonstiges'}
-const rlist=()=>{const q=RQ.toLowerCase().trim();const rs=live(DB.rezepte).filter(r=>!q||recText(r).includes(q)).sort(byTitel);
- if(!rs.length)return`<div class="empty">${RQ?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`;
+const rlist=()=>{const q=RQ.toLowerCase().trim();const rs=live(DB.rezepte).filter(r=>recFilter(r)&&(!q||recText(r).includes(q))).sort(byTitel);
+ if(!rs.length)return`<div class="empty">${(RQ||RF.tm||RF.schnell||RF.min)?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`;
  const closed=LS.get('rec_closed',{});const cats=[...REZ_KAT];for(const r of rs){const k=r.kat||'Sonstiges';if(!cats.includes(k))cats.push(k)}
- return cats.map(k=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===k);if(!its.length)return'';const cl=!q&&closed[k];
+ return cats.map(k=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===k);if(!its.length)return'';const cl=!q&&!(RF.tm||RF.schnell||RF.min)&&closed[k];
   return`<div class="cat rch" data-a="rtogk" data-k="${esc(k)}"><span>${cl?'▸':'▾'} ${esc(k)}</span><span>${its.length}</span></div>`+(cl?'':its.map(recCard).join(''))}).join('')};
+const meId=()=>ME.toLowerCase();
+const ratingOf=(rid,u)=>{const b=live(DB.bewertungen).find(x=>x.rid===rid&&x.user===u);return b?b.sterne:0};
+function avgRating(rid){const bs=live(DB.bewertungen).filter(x=>x.rid===rid);return bs.length?bs.reduce((a,x)=>a+x.sterne,0)/bs.length:0}
+function recFilter(r){if(RF.tm&&!r.tm)return false;if(RF.schnell&&!r.schnell)return false;
+ if(RF.min){if(RF.who==='avg'){if(avgRating(r.id)<RF.min)return false}
+  else if(RF.who==='all'){const us=live(DB.nutzer);if(!us.length||us.some(u=>ratingOf(r.id,u.id)<RF.min))return false}
+  else if(ratingOf(r.id,RF.who)<RF.min)return false}
+ return true}
+const saveRF=()=>LS.set('rec_f',RF);
+function filterBar(){const rs=live(DB.rezepte),us=live(DB.nutzer).sort(byName),none=!RF.tm&&!RF.schnell&&!RF.min;
+ return`<div class="chips"><button class="chip ${none?'on':''}" data-a="rfclr">Alle</button><button class="chip ${RF.tm?'on':''}" data-a="rftog" data-k="tm">Thermomix (${rs.filter(r=>r.tm).length})</button><button class="chip ${RF.schnell?'on':''}" data-a="rftog" data-k="schnell">⚡ Schnell (${rs.filter(r=>r.schnell).length})</button></div>
+ <div class="row" style="margin-bottom:8px"><select class="srch" data-in="rfwho" style="flex:1"><option value="avg" ${RF.who==='avg'?'selected':''}>★ Ø aller</option>${us.map(u=>`<option value="${esc(u.id)}" ${RF.who===u.id?'selected':''}>★ ${esc(u.name)}</option>`).join('')}<option value="all" ${RF.who==='all'?'selected':''}>★ von allen</option></select><select class="srch" data-in="rfmin" style="width:auto"><option value="0">egal</option>${[3,4,5].map(n=>`<option value="${n}" ${RF.min===n?'selected':''}>ab ${n} ★</option>`).join('')}</select></div>`}
+IN.rfwho=v=>{RF.who=v;saveRF();render()};IN.rfmin=v=>{RF.min=+v;saveRF();render()};
+A.rftog=d=>{RF[d.k]=!RF[d.k];saveRF();render()};
+A.rfclr=()=>{RF={tm:false,schnell:false,min:0,who:RF.who};saveRF();render()};
+A.rate=(d,b)=>{const u=meId(),id=RD.id+'|'+u,n=+d.n;let x=DB.bewertungen.find(y=>y.id===id);
+ if(x&&!x.d&&x.sterne===n){x.d=true;x.u=now()}else if(x){x.sterne=n;x.d=false;x.u=now()}else DB.bewertungen.push({id,rid:RD.id,user:u,sterne:n,u:now()});
+ persist();drawRec(b.closest('.ov'))};
 A.rtogk=d=>{const c=LS.get('rec_closed',{});c[d.k]=!c[d.k];LS.set('rec_closed',c);$('#rlist').innerHTML=rlist()};
-function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div><div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
+function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div>${filterBar()}<div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
 IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist()};
 A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto und Link nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
 A.recman=()=>{closeSheet();openEditor(null)};
@@ -471,8 +492,12 @@ A.reclink=()=>{closeSheet();ask('Rezept-Link','',u=>importFlow(()=>importLink(u)
 async function importFlow(fn){const done=busy('Rezept wird gelesen …');try{const r=await fn();done();openEditor(r)}catch(e){done();toast(e.message||String(e))}}
 
 A.openrec=d=>{const r=Rz(d.id);RD={id:r.id,por:recStd(r),lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
+function ratingRows(rid){const me=meId();const us=live(DB.nutzer).slice().sort((a,b)=>(b.id===me)-(a.id===me)||a.name.localeCompare(b.name,'de'));if(!us.some(u=>u.id===me))us.unshift({id:me,name:ME});
+ return us.map(u=>{const v=ratingOf(rid,u.id),own=u.id===me;return`<div class="srow"><span>${esc(u.name)}${own?' <small style="display:inline">(du)</small>':''}</span><span class="stars">${[1,2,3,4,5].map(n=>`<button class="star ${n<=v?'on':''}" data-a="rate" data-n="${n}" ${own?'':'disabled'} aria-label="${n} Sterne">★</button>`).join('')}</span></div>`}).join('')}
 function drawRec(el){const r=Rz(RD.id);const f=RD.por/r.portionen;
- el.querySelector('.shb').innerHTML=`${IMGC[r.id]?`<img class="hero" alt="" src="${IMGC[r.id]}">`:''}<div class="cat" style="margin-top:2px">Portionen</div><div class="chips">${[1,2,3,4,5,6].map(n=>`<button class="chip ${RD.por===n?'on':''}" data-a="rpset" data-n="${n}">${n}${recStd(r)===n?' ★':''}</button>`).join('')}</div><div class="row" style="justify-content:space-between"><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span>${RD.por===recStd(r)?'<span class="mu">★ Standard</span>':`<button class="lnk" data-a="rstd">★ ${RD.por} als Standard festlegen</button>`}</div>
+ el.querySelector('.shb').innerHTML=`${IMGC[r.id]?`<img class="hero" alt="" src="${IMGC[r.id]}">`:''}${r.tm?'<span class="lad" style="margin:0 6px 4px 0">Thermomix-Rezept</span>':''}${r.schnell?'<span class="lad" style="margin:0 6px 4px 0">⚡ Schnell</span>':''}
+ <div class="cat" style="margin-top:6px">Bewertung</div>${ratingRows(r.id)}
+ <div class="cat" style="margin-top:10px">Portionen</div><div class="chips">${[1,2,3,4,5,6].map(n=>`<button class="chip ${RD.por===n?'on':''}" data-a="rpset" data-n="${n}">${n}${recStd(r)===n?' ★':''}</button>`).join('')}</div><div class="row" style="justify-content:space-between"><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span>${RD.por===recStd(r)?'<span class="mu">★ Standard</span>':`<button class="lnk" data-a="rstd">★ ${RD.por} als Standard festlegen</button>`}</div>
  <div class="cat">Zutaten</div>${r.zutaten.map(x=>{const z=Z(x.zid);return`<div class="srow"><span>${esc(z?z.name:x.n||'?')}</span><span>${x.menge==null?'':esc(fmtQty(toBase(x.menge*f,x.einheit),fam(x.einheit)))}</span></div>`}).join('')}
  ${r.schritte?`<div class="cat">Zubereitung</div><ol style="padding-left:20px;margin:6px 0">${r.schritte.split(/\n+/).filter(s=>s.trim()).map(s=>`<li style="margin-bottom:6px">${esc(s)}</li>`).join('')}</ol>`:''}
  ${r.quelle?`<p class="mu">Quelle: ${/^https?:\/\//.test(r.quelle)?`<a href="${esc(r.quelle)}" target="_blank" rel="noopener">${esc(r.quelle)}</a>`:esc(r.quelle)}</p>`:''}
@@ -490,14 +515,14 @@ A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id
 
 /* ---- Rezept-Editor ---- */
 function openEditor(r){
- if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut,_img:r.img,kat:r.kat};
+ if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut,_img:r.img,kat:r.kat,tm:r.tm,schnell:r.schnell};
  ED=r?{id:r.id,titel:r.titel,portionen:r._zut?r.portionen:recStd(r),schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge*recF(r)),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
  if(!ED.zut.length)ED.zut=[{}];
- ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);ED.kat=(r&&r.kat)||'';
+ ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);ED.kat=(r&&r.kat)||'';ED.tm=!!(r&&r.tm);ED.schnell=!!(r&&r.schnell);
  if(r&&!r.id)delete ED.id;
  ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
 function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
- el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Mengen gelten für … Portionen (Standard)</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
+ el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Mengen gelten für … Portionen (Standard)</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="chk"><input type="checkbox" data-a="edtm" ${s.tm?'checked':''}><span>🥣 Thermomix-Rezept</span></label><label class="chk"><input type="checkbox" data-a="edsn" ${s.schnell?'checked':''}><span>⚡ Schnell (schnell zubereitet)</span></label><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
  ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>`).join('')}
  <button class="lnk" data-a="edadd">＋ Zutat hinzufügen</button>
  <label class="lb">Zubereitung (ein Schritt pro Zeile)</label><textarea class="srch" rows="6" data-ed="schritte">${esc(s.schritte)}</textarea><label class="lb">Quelle / Link</label><input class="srch" data-ed="quelle" value="${esc(s.quelle)}">
@@ -505,6 +530,8 @@ function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
  el.querySelector('.shb').scrollTop=sc}
 A.edimg=d=>{const i=document.createElement('input');i.type='file';i.accept='image/*';if(d.c)i.capture='environment';i.onchange=async()=>{if(!i.files[0])return;try{ED.img=await imgResize(i.files[0],1600,.85);ED.imgChanged=true;drawEditor()}catch(e){toast(e.message)}};i.click()};
 A.edimgrm=()=>{ED.img=null;ED.imgChanged=true;drawEditor()};
+A.edtm=(d,el)=>{ED.tm=el.checked};
+A.edsn=(d,el)=>{ED.schnell=el.checked};
 A.edadd=()=>{ED.zut.push({});drawEditor()};
 A.edrm=d=>{ED.zut.splice(+d.idx,1);if(!ED.zut.length)ED.zut=[{}];drawEditor()};
 A.edpick=d=>{const x=ED.zut[+d.idx];pickZutat({typ:'markt',q:x.zid?'':(x.name||''),defKat:x.sug,onPick:z=>{x.zid=z.id;x.name=z.name;if(!x.einheit)x.einheit=z.eh;drawEditor()}})};
@@ -515,7 +542,7 @@ A.edsave=()=>{
   if(z)zut.push({zid:z.id,n:z.name,menge:parseNum(x.menge),einheit:x.einheit||''})}
  const id=s.id||uid();let bild=s.bild||0;
  if(s.imgChanged){if(s.img){bild=now();IMGC[id]=s.img;IMGM[id]={v:bild,data:s.img,up:true};IMG.set(id,IMGM[id])}else{bild=0;delete IMGC[id];delete IMGM[id];IMG.del(id)}}
- const por=Math.max(1,parseInt(s.portionen)||4);const r={id,titel:String(s.titel).trim(),portionen:por,std:por,zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,kat:s.kat||guessRecKat(String(s.titel),zut.map(x=>Z(x.zid)?.name||'')),u:now()};
+ const por=Math.max(1,parseInt(s.portionen)||4);const r={id,titel:String(s.titel).trim(),portionen:por,std:por,tm:!!s.tm,schnell:!!s.schnell,zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,kat:s.kat||guessRecKat(String(s.titel),zut.map(x=>Z(x.zid)?.name||'')),u:now()};
  const i=DB.rezepte.findIndex(x=>x.id===r.id);if(i>=0)DB.rezepte[i]=r;else DB.rezepte.push(r);
  closeSheet(s.el);ED=null;persist();toast('Rezept gespeichert')};
 
@@ -525,15 +552,15 @@ const normUnit=u=>{if(!u)return'';const k=String(u).trim().toLowerCase();return 
 function recipePrompt(){
  const names=live(DB.zutaten).filter(z=>z.typ==='markt').map(z=>z.name).slice(0,600).join('; ');
  return`Lies das Rezept und antworte NUR mit einem JSON-Objekt (kein weiterer Text):
-{"titel":"","portionen":4,"rezeptkategorie":"","zutaten":[{"name":"","menge":null,"einheit":"","kategorie":""}],"schritte":["",""]}
-Regeln: Deutsch. "menge" ist eine Zahl (Brüche als Dezimalzahl) oder null. "einheit" nur aus: ${UNITS.join(', ')} – sonst leerer String (Zählbares wie 2 Zwiebeln = "Stück"). "name" ohne Mengenangaben in Grundform, z. B. "Paprika (gelb)" statt "gelbe Paprika". Wenn eine Zutat einer dieser vorhandenen Zutaten entspricht, verwende EXAKT diese Schreibweise: ${names}. "kategorie" aus: ${KAT_MARKT.join('; ')}. "rezeptkategorie" aus: ${REZ_KAT.join("; ")}. "schritte": kurze Arbeitsschritte.`}
+{"titel":"","portionen":4,"rezeptkategorie":"","thermomix":false,"schnell":false,"zutaten":[{"name":"","menge":null,"einheit":"","kategorie":""}],"schritte":["",""]}
+Regeln: Deutsch. "menge" ist eine Zahl (Brüche als Dezimalzahl) oder null. "einheit" nur aus: ${UNITS.join(', ')} – sonst leerer String (Zählbares wie 2 Zwiebeln = "Stück"). "name" ohne Mengenangaben in Grundform, z. B. "Paprika (gelb)" statt "gelbe Paprika". Wenn eine Zutat einer dieser vorhandenen Zutaten entspricht, verwende EXAKT diese Schreibweise: ${names}. "kategorie" aus: ${KAT_MARKT.join('; ')}. "rezeptkategorie" aus: ${REZ_KAT.join("; ")}. "thermomix": true, wenn das Rezept für den Thermomix ist (Hinweise wie TM5/TM6/TM31, Stufe, Drehzahl, Temperatur, Linkslauf), sonst false. "schnell": true, wenn die gesamte Zubereitung höchstens 30 Minuten dauert, sonst false. "schritte": kurze Arbeitsschritte.`}
 async function claudeJSON(content){
  const key=(LS.get('claude_key','')||'').trim();if(!key)throw new Error('Kein Claude-API-Key hinterlegt (Mehr → Einstellungen).');
  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:LS.get('claude_model','claude-sonnet-5-5'),max_tokens:4000,messages:[{role:'user',content}]})});
  const j=await r.json();if(!r.ok)throw new Error('Claude: '+(j.error?.message||r.status));
  const t=(j.content||[]).map(c=>c.text||'').join('');const m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('Antwort von Claude nicht lesbar');return JSON.parse(m[0])}
 function fromClaude(j,quelle){
- return{titel:j.titel||'',kat:REZ_KAT.includes(j.rezeptkategorie)?j.rezeptkategorie:'',portionen:parseInt(j.portionen)||4,schritte:[].concat(j.schritte||[]).join('\n'),quelle:quelle||'',
+ return{titel:j.titel||'',tm:!!j.thermomix,schnell:!!j.schnell,kat:REZ_KAT.includes(j.rezeptkategorie)?j.rezeptkategorie:'',portionen:parseInt(j.portionen)||4,schritte:[].concat(j.schritte||[]).join('\n'),quelle:quelle||'',
   zut:(j.zutaten||[]).map(x=>{const z=findZutat(x.name);return{zid:z?z.id:null,name:z?z.name:String(x.name||''),menge:x.menge==null?'':fmtNum(+x.menge),einheit:normUnit(x.einheit),sug:x.kategorie}})}}
 function imgResize(file,max=900,q=.78){return new Promise((res,rej)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',q))};im.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden'));im.src=u})}
 async function fetchImage(url){
@@ -558,8 +585,9 @@ function parseLine(s){s=String(s).replace(/\s+/g,' ').trim();
  if(!m)return{name:s,menge:null,einheit:''};
  const menge=parseNum(m[1]);let einheit=normUnit(m[2]);if(menge!=null&&!einheit)einheit='Stück';
  return{name:m[3].trim(),menge,einheit}}
+function isoQuick(t){const m=String(t||'').match(/^P(?:T)?(?:(\d+)H)?(?:(\d+)M)?/i);if(!m||(!m[1]&&!m[2]))return false;return (+m[1]||0)*60+(+m[2]||0)<=30}
 function mapLD(ld,url){
- return{titel:ld.name||'',portionen:parseInt([].concat(ld.recipeYield||'')[0])||4,schritte:ldSteps(ld.recipeInstructions).join('\n'),quelle:url,
+ return{titel:ld.name||'',tm:/thermomix/i.test(JSON.stringify(ld)),schnell:isoQuick(ld.totalTime||ld.cookTime),portionen:parseInt([].concat(ld.recipeYield||'')[0])||4,schritte:ldSteps(ld.recipeInstructions).join('\n'),quelle:url,
   zut:[].concat(ld.recipeIngredient||[]).map(parseLine).map(p=>{const z=findZutat(p.name);return{zid:z?z.id:null,name:z?z.name:p.name,menge:p.menge==null?'':fmtNum(p.menge),einheit:p.einheit}})}}
 async function importLink(url){
  if(!/^https?:\/\//i.test(url))url='https://'+url;
