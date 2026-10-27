@@ -34,7 +34,7 @@ textarea.srch{resize:vertical}
 .ttl{flex:1}
 .ib{border:1px solid var(--bd);background:var(--card);border-radius:10px;padding:8px 11px;min-width:40px}
 .addbar{width:100%;text-align:left;border:1px dashed var(--ac);background:var(--ac2);color:var(--ac);border-radius:12px;padding:12px;font-weight:600;margin-bottom:8px}
-.chips{display:flex;gap:6px;overflow:auto;margin-bottom:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
 .chip{border:1px solid var(--bd);background:var(--card);border-radius:20px;padding:5px 12px;white-space:nowrap;font-size:14px}
 .chip.on{background:var(--ac);border-color:var(--ac);color:#fff}
 .cat{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);font-weight:700;margin:14px 4px 4px}
@@ -83,7 +83,7 @@ textarea.srch{resize:vertical}
 .tt button{background:none;border:0;color:#7CFC9A;font-weight:700}
 .ver{border-left:3px solid var(--ac);padding-left:10px;margin:10px 0}
 .ver ul{margin:4px 0 0;padding-left:18px}
-.rc{display:flex;gap:10px;align-items:center}.rc>div{flex:1;min-width:0}.rplus{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:24px;line-height:1;cursor:pointer}.rplus:active{opacity:.7}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
+.rc{display:flex;gap:10px;align-items:center}.rc>div{flex:1;min-width:0}.rplus{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:24px;line-height:1;cursor:pointer}.rplus:active{opacity:.7}.rchk{flex:none;width:28px;height:28px;margin:0 8px;accent-color:var(--ac)}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
 .rch{display:flex;justify-content:space-between;cursor:pointer;padding:10px 4px 4px;margin-top:10px;color:var(--tx)}
 .grp{display:block}.gh{display:flex;justify-content:space-between;gap:8px;margin-bottom:2px}.gs{color:var(--ac);font-weight:600;font-size:14px}.prt{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}.prt .nm small{display:inline;margin-left:6px}
 .stars{display:flex;gap:2px}.star{border:0;background:none;font-size:27px;line-height:1;padding:2px 3px;color:var(--bd)}.star.on{color:#f5b301}.star:disabled{opacity:.75}
@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.1.1';
+const VERSION='1.2.0';
 const CHANGELOG=[
+{v:'1.2.0',d:'27.10.2026',t:['Wochenplanung: gleiche Ansicht wie die Rezepte (Kategorien, Suche, Filter, Fotos); statt ＋ gibt es eine Checkbox, und man kann nach „Ausgewählt“ filtern','Neuer letzter Schritt: Nach der Auswahl prüft die Person, die die Vorschläge gemacht hat, die Einkaufsliste und bestätigt sie. Erst dann gilt die Planung als fertig und kommt ins Archiv (mit Zeitpunkt der Bestätigung)']},
 {v:'1.1.1',d:'27.10.2026',t:['Einkaufsliste leeren (Listenmenü ⋮ → „Liste leeren“) mit Sicherheitsabfrage und Rückgängig','Rezeptübersicht: Mit dem ＋ neben jedem Rezept kommen die Zutaten (in der Standard-Portion) direkt auf die Einkaufsliste; das Rezept öffnen und „Zur Einkaufsliste hinzufügen“ geht weiterhin']},
 {v:'1.1.0',d:'27.10.2026',t:['Update-Hinweis: die App meldet selbst, wenn auf GitHub eine neuere Version liegt, und aktualisiert sich per Tipp (auch unter Mehr → Info → Nach Update suchen)','Automatische Sicherung in Dropbox (täglich, wöchentlich oder monatlich, Anzahl einstellbar) mit „Jetzt sichern“ und Wiederherstellen aus einer Sicherung','Doppelte Artikel zusammenführen: pro Artikel oder über „Mögliche Doppelte prüfen“; Rezepte, Listen, Favoriten und Snacks werden angepasst','Vorrat: Artikel als „haben wir normalerweise da“ markieren; aus Rezepten landen sie unter „🏠 Haben wir schon?“ (Brauchen wir / Da)','Einkaufsliste teilen (Teilen-Menü, Kopieren, WhatsApp)','Optionale Handy-Benachrichtigungen bei der Wochenplanung über ntfy.sh (in den Einstellungen ein- und ausschaltbar)']},
  {v:'1.0.10',d:'27.10.2026',t:['Link-Import robuster: sechs Wege zum Laden der Seite gleichzeitig; bei einem Fehler zeigt die App genau, was blockiert war, und bietet „Text einfügen“ oder „Erneut versuchen“ an','Neu: Rezept per Text einfügen (kopierter Rezepttext wird von Claude zum Rezept)']},
@@ -175,7 +176,7 @@ DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
 DB.einst=DB.einst||{meatSplit:false,u:0};
 let ME=LS.get('me','');
 let view=LS.get('view','liste');
-const FLT={};let RF=Object.assign({tm:false,schnell:false,min:0,who:'avg'},LS.get('rec_f',{}));let RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WTO='',WPICK=null,WPICKU=0,WTARGET='new';
+const FLT={};let RF=Object.assign({tm:false,schnell:false,min:0,who:'avg'},LS.get('rec_f',{}));let RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WF={tm:false,schnell:false,min:0,who:'avg',sel:false},WQ='',WTO='',WPICK=null,WPICKU=0,WTARGET='new';
 let IDX={},ZKEY=new Map();
 function rebuild(){IDX={};ZKEY=new Map();for(const z of DB.zutaten)IDX[z.id]=z;for(const z of DB.zutaten){if(z.d)continue;ZKEY.set(keyOf(z.name),z);for(const a of z.alias||[]){const k=keyOf(a);if(k&&!ZKEY.has(k))ZKEY.set(k,z)}}}
 const Z=id=>IDX[id];
@@ -403,10 +404,12 @@ function render(){
  $('#app').innerHTML=`<header><span>🛒 Einkauf</span><span class="hr"><span>${esc(ME)}</span><button id="sdot" class="dot ${SS}" data-a="syncnow" title="${esc(SERR)}"></button></span></header>${banner()}<main>${main()}</main><nav>${nav.map(([v,i,l])=>`<button data-a="go" data-v="${v}" class="${view===v||(v==='mehr'&&more)?'on':''}"><span>${i}</span>${l}${v==='woche'&&wdot()?'<i class="bdg"></i>':''}</button>`).join('')}</nav>`;
  scrollTo(0,y)}
 function main(){switch(view){case'rezepte':return viewRezepte();case'woche':return viewWoche();case'snacks':return viewSnacks();case'drogerie':return listView('drogerie');case'fav':return viewFav();case'zut':return viewZut();case'set':return viewSet();case'info':return viewInfo();case'archiv':return viewArchiv();default:return listView('markt')}}
-function wdot(){const w=DB.wochenplan;return (w.status==='vorschlag'&&w.an===ME)||(w.status==='fertig'&&w.von===ME&&!w.gesehen)}
+function wdot(){const w=DB.wochenplan;return (w.status==='vorschlag'&&w.an===ME)||(w.status==='pruefung'&&w.von===ME)||(w.status==='fertig'&&(w.bestaetigt?w.an===ME:w.von===ME)&&!w.gesehen)}
 function banner(){if(UPD)return`<div class="ban" data-a="reload">🔄 Update auf Version ${esc(UPD.v)} verfügbar – tippen zum Aktualisieren</div>`;const w=DB.wochenplan;if(view==='woche')return'';
  if(w.status==='vorschlag'&&w.an===ME)return`<div class="ban" data-a="go" data-v="woche">📅 ${esc(w.von)} hat Rezept-Vorschläge geschickt – jetzt auswählen</div>`;
- if(w.status==='fertig'&&w.von===ME&&!w.gesehen)return`<div class="ban" data-a="go" data-v="woche">✅ ${esc(w.an)} hat ausgewählt – die Wochenliste ist fertig</div>`;
+ if(w.status==='pruefung'&&w.von===ME)return`<div class="ban" data-a="go" data-v="woche">🛒 ${esc(w.an)} hat ausgewählt – bitte die Einkaufsliste prüfen und bestätigen</div>`;
+ if(w.status==='fertig'&&w.bestaetigt&&w.an===ME&&!w.gesehen)return`<div class="ban" data-a="go" data-v="woche">✅ ${esc(w.von)} hat die Einkaufsliste bestätigt – es kann eingekauft werden</div>`;
+ if(w.status==='fertig'&&!w.bestaetigt&&w.von===ME&&!w.gesehen)return`<div class="ban" data-a="go" data-v="woche">✅ ${esc(w.an)} hat ausgewählt – die Wochenliste ist fertig</div>`;
  if(!DBX.ready()&&view==='liste')return`<div class="ban" data-a="go" data-v="set">☁️ Noch nicht mit Dropbox verbunden – Daten liegen nur auf diesem Gerät. Tippen zum Einrichten.</div>`;
  return''}
 A.syncnow=()=>{if(!DBX.ready()){view='set';render();return}sync(true);toast(SS==='err'?SERR:'Synchronisiere …')};
@@ -525,7 +528,7 @@ function newZutatDialog(name,typ,cb,defKat){
 
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
-const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div><button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button></div>`;
+const recCard=(r,set,w)=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div>${set?`<input type="checkbox" class="rchk" data-a="wtog" data-w="${w}" data-id="${r.id}" ${set.has(r.id)?'checked':''} aria-label="Auswählen">`:`<button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button>`}</div>`;
 function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
  if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
  if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
@@ -536,30 +539,33 @@ function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLo
  if(/hähnchen|huhn|rind|schwein|lachs|fisch|steak|schnitzel|hack|burger|wurst|garnelen|braten|gyros|pute|ente/.test(t))return'Fleisch & Fisch';
  if(/vegan|vegetar|gemüse|tofu|linsen|kichererbsen|curry|auflauf|ofengemüse/.test(t))return'Vegetarisch & Vegan';
  return'Sonstiges'}
-const rlist=()=>{const q=RQ.toLowerCase().trim();const rs=live(DB.rezepte).filter(r=>recFilter(r)&&(!q||recText(r).includes(q))).sort(byTitel);
- if(!rs.length)return`<div class="empty">${(RQ||RF.tm||RF.schnell||RF.min)?'Nichts gefunden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.'}</div>`;
- const closed=LS.get('rec_closed',{});const cats=[...REZ_KAT];for(const r of rs){const k=r.kat||'Sonstiges';if(!cats.includes(k))cats.push(k)}
- return cats.map(k=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===k);if(!its.length)return'';const cl=!q&&!(RF.tm||RF.schnell||RF.min)&&closed[k];
-  return`<div class="cat rch" data-a="rtogk" data-k="${esc(k)}"><span>${cl?'▸':'▾'} ${esc(k)}</span><span>${its.length}</span></div>`+(cl?'':its.map(recCard).join(''))}).join('')};
+const rlist=(o)=>{o=o||{};const F=o.F||RF,Q=o.q!=null?o.q:RQ,ck=o.ck||'rec_closed',q=Q.toLowerCase().trim();
+ const rs=live(DB.rezepte).filter(r=>(!o.ids||o.ids.includes(r.id))&&recFilter(r,F)&&(!o.set||!F.sel||o.set.has(r.id))&&(!q||recText(r).includes(q))).sort(byTitel);
+ const act=F.tm||F.schnell||F.min||F.sel;
+ if(!rs.length)return`<div class="empty">${(Q||act)?'Nichts gefunden.':(o.set?'Keine Rezepte vorhanden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.')}</div>`;
+ const closed=LS.get(ck,{});const cats=[...REZ_KAT];for(const r of rs){const k=r.kat||'Sonstiges';if(!cats.includes(k))cats.push(k)}
+ return cats.map(k=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===k);if(!its.length)return'';const cl=!q&&!act&&closed[k];
+  return`<div class="cat rch" data-a="rtogk" data-k="${esc(k)}" data-s="${o.set?'w':'r'}"><span>${cl?'▸':'▾'} ${esc(k)}</span><span>${its.length}</span></div>`+(cl?'':its.map(r=>recCard(r,o.set,o.w)).join(''))}).join('')};
 const meId=()=>ME.toLowerCase();
 const ratingOf=(rid,u)=>{const b=live(DB.bewertungen).find(x=>x.rid===rid&&x.user===u);return b?b.sterne:0};
 function avgRating(rid){const bs=live(DB.bewertungen).filter(x=>x.rid===rid);return bs.length?bs.reduce((a,x)=>a+x.sterne,0)/bs.length:0}
-function recFilter(r){if(RF.tm&&!r.tm)return false;if(RF.schnell&&!r.schnell)return false;
- if(RF.min){if(RF.who==='avg'){if(avgRating(r.id)<RF.min)return false}
-  else if(RF.who==='all'){const us=live(DB.nutzer);if(!us.length||us.some(u=>ratingOf(r.id,u.id)<RF.min))return false}
-  else if(ratingOf(r.id,RF.who)<RF.min)return false}
+function recFilter(r,F){F=F||RF;if(F.tm&&!r.tm)return false;if(F.schnell&&!r.schnell)return false;
+ if(F.min){if(F.who==='avg'){if(avgRating(r.id)<F.min)return false}
+  else if(F.who==='all'){const us=live(DB.nutzer);if(!us.length||us.some(u=>ratingOf(r.id,u.id)<F.min))return false}
+  else if(ratingOf(r.id,F.who)<F.min)return false}
  return true}
 const saveRF=()=>LS.set('rec_f',RF);
-function filterBar(){const rs=live(DB.rezepte),us=live(DB.nutzer).sort(byName),none=!RF.tm&&!RF.schnell&&!RF.min;
- return`<div class="chips"><button class="chip ${none?'on':''}" data-a="rfclr">Alle</button><button class="chip ${RF.tm?'on':''}" data-a="rftog" data-k="tm">Thermomix (${rs.filter(r=>r.tm).length})</button><button class="chip ${RF.schnell?'on':''}" data-a="rftog" data-k="schnell">⚡ Schnell (${rs.filter(r=>r.schnell).length})</button></div>
- <div class="row" style="margin-bottom:8px"><select class="srch" data-in="rfwho" style="flex:1"><option value="avg" ${RF.who==='avg'?'selected':''}>★ Ø aller</option>${us.map(u=>`<option value="${esc(u.id)}" ${RF.who===u.id?'selected':''}>★ ${esc(u.name)}</option>`).join('')}<option value="all" ${RF.who==='all'?'selected':''}>★ von allen</option></select><select class="srch" data-in="rfmin" style="width:auto"><option value="0">egal</option>${[3,4,5].map(n=>`<option value="${n}" ${RF.min===n?'selected':''}>ab ${n} ★</option>`).join('')}</select></div>`}
+function filterBar(s){const W=s==='w',F=W?WF:RF,rs=live(DB.rezepte),us=live(DB.nutzer).sort(byName),none=!F.tm&&!F.schnell&&!F.min&&!F.sel,p=W?'wf':'rf';
+ return`<div class="chips"><button class="chip ${none?'on':''}" data-a="rfclr" data-s="${s||'r'}">Alle</button>${W?`<button class="chip ${F.sel?'on':''}" data-a="rftog" data-k="sel" data-s="w">☑ Ausgewählt (<span id="wsc">${wctx().set.size}</span>)</button>`:''}<button class="chip ${F.tm?'on':''}" data-a="rftog" data-k="tm" data-s="${s||'r'}">Thermomix (${rs.filter(r=>r.tm).length})</button><button class="chip ${F.schnell?'on':''}" data-a="rftog" data-k="schnell" data-s="${s||'r'}">⚡ Schnell (${rs.filter(r=>r.schnell).length})</button></div>
+ <div class="row" style="margin-bottom:8px"><select class="srch" data-in="${p}who" style="flex:1"><option value="avg" ${F.who==='avg'?'selected':''}>★ Ø aller</option>${us.map(u=>`<option value="${esc(u.id)}" ${F.who===u.id?'selected':''}>★ ${esc(u.name)}</option>`).join('')}<option value="all" ${F.who==='all'?'selected':''}>★ von allen</option></select><select class="srch" data-in="${p}min" style="width:auto"><option value="0">egal</option>${[3,4,5].map(n=>`<option value="${n}" ${F.min===n?'selected':''}>ab ${n} ★</option>`).join('')}</select></div>`}
 IN.rfwho=v=>{RF.who=v;saveRF();render()};IN.rfmin=v=>{RF.min=+v;saveRF();render()};
-A.rftog=d=>{RF[d.k]=!RF[d.k];saveRF();render()};
-A.rfclr=()=>{RF={tm:false,schnell:false,min:0,who:RF.who};saveRF();render()};
+IN.wfwho=v=>{WF.who=v;render()};IN.wfmin=v=>{WF.min=+v;render()};
+A.rftog=d=>{const W=d.s==='w',F=W?WF:RF;F[d.k]=!F[d.k];if(!W)saveRF();render()};
+A.rfclr=d=>{if(d.s==='w')WF={tm:false,schnell:false,min:0,who:WF.who,sel:false};else{RF={tm:false,schnell:false,min:0,who:RF.who};saveRF()}render()};
 A.rate=(d,b)=>{const u=meId(),id=RD.id+'|'+u,n=+d.n;let x=DB.bewertungen.find(y=>y.id===id);
  if(x&&!x.d&&x.sterne===n){x.d=true;x.u=now()}else if(x){x.sterne=n;x.d=false;x.u=now()}else DB.bewertungen.push({id,rid:RD.id,user:u,sterne:n,u:now()});
  persist();drawRec(b.closest('.ov'))};
-A.rtogk=d=>{const c=LS.get('rec_closed',{});c[d.k]=!c[d.k];LS.set('rec_closed',c);$('#rlist').innerHTML=rlist()};
+A.rtogk=d=>{const W=d.s==='w',ck=W?'w_closed':'rec_closed',c=LS.get(ck,{});c[d.k]=!c[d.k];LS.set(ck,c);if(W)wRefresh();else $('#rlist').innerHTML=rlist()};
 function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div>${filterBar()}<div id="rlist">${rlist()}</div><button class="fab" data-a="newrec">＋</button>`}
 IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist()};
 A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="rectext"><span>📋</span>Text einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto, Link und Text nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
@@ -746,41 +752,49 @@ A.zdel=(d,b)=>{if(!confirm('Artikel aus dem Katalog löschen? Bestehende Einträ
 
 /* =====================  Wochenplanung  ===================== */
 const others=()=>live(DB.nutzer).map(n=>n.name).filter(n=>n.toLowerCase()!==ME.toLowerCase());
-function recChecks(ids,set,w){return ids.map(id=>{const r=Rz(id);return r?`<label class="chk"><input type="checkbox" data-a="wtog" data-w="${w}" data-id="${id}" ${set.has(id)?'checked':''}><span>${esc(r.titel)}</span></label>`:''}).join('')}
+function wctx(){const w=DB.wochenplan;return w.status==='vorschlag'&&w.an===ME&&WPICK?{ids:w.vorschlaege,set:WPICK,w:'B'}:{ids:null,set:WSEL,w:'A'}}
+function wListHTML(){const c=wctx();return rlist({F:WF,q:WQ,ids:c.ids,set:c.set,w:c.w,ck:'w_closed'})}
+function wRefresh(){const l=$('#wlist');if(l)l.innerHTML=wListHTML();const c=wctx(),sc=$('#wsc');if(sc)sc.textContent=c.set.size;const n=$('#wcnt');if(n)n.textContent=c.set.size}
+const wSearch=()=>`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="wq" value="${esc(WQ)}"></div>${filterBar('w')}<div id="wlist">${wListHTML()}</div>`;
+const wCards=ids=>(ids||[]).map(id=>`<div class="card"><b>${esc(Rz(id)?.titel||'(gelöscht)')}</b></div>`).join('');
 function viewWoche(){
- const w=DB.wochenplan;const rs=live(DB.rezepte).sort(byTitel);
+ const w=DB.wochenplan;
  let h=`<div class="bar"><b class="ttl">📅 Wochenplanung</b></div>`;
  if(w.status==='vorschlag'&&w.an===ME){
   if(WPICKU!==w.u){WPICK=new Set(w.vorschlaege);WPICKU=w.u;WTARGET='new'}
-  h+=`<div class="note"><b>${esc(w.von)}</b> hat dir ${w.vorschlaege.length} Rezepte vorgeschlagen. Was soll es diese Woche geben?</div>${recChecks(w.vorschlaege,WPICK,'B')}
-  <label class="lb">Zutaten in welche Liste?</label><select class="srch" data-in="wtarget"><option value="new">Neue Liste „Woche ${new Date().getDate()}.${new Date().getMonth()+1}.“</option>${lists('markt').map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select><button class="btn" data-a="wdone">✅ Auswahl bestätigen & Einkaufsliste erstellen</button>`;
+  h+=`<div class="note"><b>${esc(w.von)}</b> hat dir ${w.vorschlaege.length} Rezepte vorgeschlagen. Was soll es diese Woche geben? Haken = wird gekocht.</div>${wSearch()}
+  <label class="lb">Zutaten in welche Liste?</label><select class="srch" data-in="wtarget"><option value="new">Neue Liste „Woche ${new Date().getDate()}.${new Date().getMonth()+1}.“</option>${lists('markt').map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select><button class="btn" data-a="wdone">✅ Auswahl bestätigen (<span id="wcnt">${WPICK.size}</span>) & Einkaufsliste erstellen</button>`;
  }else if(w.status==='vorschlag'&&w.von===ME){
-  h+=`<div class="note">⏳ Warte auf <b>${esc(w.an)}</b> – ${w.vorschlaege.length} Rezepte wurden geschickt:</div>${w.vorschlaege.map(id=>`<div class="card">${esc(Rz(id)?.titel||'?')}</div>`).join('')}<button class="btn dng" data-a="wcancel">Vorschläge zurückziehen</button>`;
+  h+=`<div class="note">⏳ Warte auf <b>${esc(w.an)}</b> – ${w.vorschlaege.length} Rezepte wurden geschickt:</div>${wCards(w.vorschlaege)}<button class="btn dng" data-a="wcancel">Vorschläge zurückziehen</button>`;
  }else if(w.status==='vorschlag'){
   h+=`<div class="note">Planung läuft: ${esc(w.von)} → ${esc(w.an)}.</div><button class="btn dng" data-a="wcancel">Planung abbrechen</button>`;
+ }else if(w.status==='pruefung'){
+  if(w.von===ME)h+=`<div class="note">🛒 <b>${esc(w.an)}</b> hat ${(w.auswahl||[]).length} Rezepte ausgewählt und die Einkaufsliste ist erstellt. Bitte prüfe sie. Wenn alles passt, bestätige sie – dann weiß ${esc(w.an)}, dass das Richtige gekauft wird.</div>${wCards(w.auswahl)}<button class="btn" data-a="wtolist">🛒 Einkaufsliste prüfen</button><button class="btn" data-a="wconfirm">✅ Einkaufsliste ist in Ordnung – bestätigen</button><button class="btn dng" data-a="wcancel">Planung abbrechen</button>`;
+  else h+=`<div class="note">⏳ Die Einkaufsliste wartet auf die Prüfung durch <b>${esc(w.von)}</b>. Bitte noch nicht einkaufen. Diese Rezepte hast du gewählt:</div>${wCards(w.auswahl)}<button class="btn sec" data-a="wtolist">🛒 Zur Einkaufsliste</button>${w.an===ME?'':`<button class="btn dng" data-a="wcancel">Planung abbrechen</button>`}`;
  }else{
   if(w.status==='fertig'){
-   h+=`<div class="note">✅ <b>${esc(w.an)}</b> hat ausgewählt – die Einkaufsliste ist fertig. Diese Rezepte gibt es:</div>${(w.auswahl||[]).map(id=>`<div class="card"><b>${esc(Rz(id)?.titel||'(gelöscht)')}</b></div>`).join('')}<button class="btn" data-a="wtolist">🛒 Zur Einkaufsliste</button>${w.von===ME&&!w.gesehen?`<button class="btn sec" data-a="wok">Alles klar, danke!</button>`:''}<div class="cat">Neue Planung</div>`}
+   h+=`<div class="note">${w.bestaetigt?`✅ <b>${esc(w.von)}</b> hat die Einkaufsliste geprüft und bestätigt – es kann eingekauft werden. Diese Rezepte gibt es:`:`✅ <b>${esc(w.an)}</b> hat ausgewählt – die Einkaufsliste ist fertig. Diese Rezepte gibt es:`}</div>${wCards(w.auswahl)}<button class="btn" data-a="wtolist">🛒 Zur Einkaufsliste</button>${(w.bestaetigt?w.an===ME:w.von===ME)&&!w.gesehen?`<button class="btn sec" data-a="wok">Alles klar, danke!</button>`:''}<div class="cat">Neue Planung</div>`}
   const o=others();if(!WTO&&o.length===1)WTO=o[0];
-  h+=`<p class="mu">Wähle Rezepte, die zur Wahl stehen, und schicke sie als Vorschlag an die andere Person.</p>${rs.length?recChecks(rs.map(r=>r.id),WSEL,'A'):'<div class="empty">Lege zuerst Rezepte an.</div>'}
+  h+=`<p class="mu">Wähle Rezepte, die zur Wahl stehen, und schicke sie als Vorschlag an die andere Person.</p>${live(DB.rezepte).length?wSearch():'<div class="empty">Lege zuerst Rezepte an.</div>'}
   <label class="lb">Vorschläge senden an</label><input class="srch" list="nl" data-in="wto" value="${esc(WTO)}" placeholder="Name"><datalist id="nl">${o.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>${o.length?'':'<p class="mu">Die andere Person erscheint hier, sobald sie die App mit ihrem Namen geöffnet hat.</p>'}
-  <button class="btn" data-a="wsend">📨 Vorschläge senden</button>`}
+  <button class="btn" data-a="wsend">📨 Vorschläge senden (<span id="wcnt">${WSEL.size}</span>)</button>`}
  h+=`<button class="btn sec" data-a="go" data-v="archiv">📚 Archiv (${live(DB.archiv).length})</button>`;
  return h}
+IN.wq=v=>{WQ=v;wRefresh()};
 IN.wto=v=>{WTO=v};IN.wtarget=v=>{WTARGET=v};
-A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:WPICK;el.checked?s.add(d.id):s.delete(d.id)};
+A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:WPICK;el.checked?s.add(d.id):s.delete(d.id);const n=s.size;for(const x of document.querySelectorAll('#wsc,#wcnt'))x.textContent=n};
 A.wsend=()=>{if(!WSEL.size)return toast('Bitte mindestens ein Rezept wählen');const to=WTO.trim();if(!to)return toast('Bitte einen Empfänger angeben');
  DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],gesendet:now(),u:now()};WSEL=new Set();persist();notify(to,'📅 Neue Rezept-Vorschläge',ME+' hat '+DB.wochenplan.vorschlaege.length+' Rezepte vorgeschlagen – jetzt auswählen.');toast('Vorschläge an '+to+' gesendet')};
 function ensureArchive(){const w=DB.wochenplan;if(!w||w.status!=='fertig'||!w.auswahl||!w.auswahl.length)return false;
- const id='a_'+w.u;if(DB.archiv.some(a=>a.id===id))return false;
- DB.archiv.push({id,von:w.von,an:w.an,gesendet:w.gesendet||null,gewaehlt:w.u,listeId:w.listeId||'',rez:(w.vorschlaege||[]).map(r=>({id:r,t:Rz(r)?.titel||'(gelöscht)',gew:w.auswahl.includes(r)})),u:now()});return true}
+ const id='a_'+(w.gewaehlt||w.u);if(DB.archiv.some(a=>a.id===id))return false;
+ DB.archiv.push({id,von:w.von,an:w.an,gesendet:w.gesendet||null,gewaehlt:w.gewaehlt||w.u,best:w.bestaetigt||null,listeId:w.listeId||'',rez:(w.vorschlaege||[]).map(r=>({id:r,t:Rz(r)?.titel||'(gelöscht)',gew:w.auswahl.includes(r)})),u:now()});return true}
 const fmtDT=t=>t?new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr':'Datum unbekannt';
 function viewArchiv(){
  const es=live(DB.archiv).sort((a,b)=>(b.gewaehlt||0)-(a.gewaehlt||0));
  return`<div class="bar"><button class="ib" data-a="go" data-v="woche">←</button><b class="ttl">📚 Archiv der Wochenplanungen</b></div>`+
  (es.length?es.map(a=>`<div class="card"><div class="ph"><b>${a.gewaehlt?esc(new Date(a.gewaehlt).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'})):'Wochenplanung'}</b><button class="ib" data-a="archdel" data-id="${a.id}">🗑</button></div>
   <small>💡 Vorschläge von <strong>${esc(a.von)}</strong> · ${esc(fmtDT(a.gesendet))}</small>
-  <small>✅ Auswahl von <strong>${esc(a.an)}</strong> · ${esc(fmtDT(a.gewaehlt))}</small>
+  <small>✅ Auswahl von <strong>${esc(a.an)}</strong> · ${esc(fmtDT(a.gewaehlt))}</small>${a.best?`<small>🧾 Einkaufsliste bestätigt von <strong>${esc(a.von)}</strong> · ${esc(fmtDT(a.best))}</small>`:''}
   <div class="cat" style="margin:10px 0 2px">Gewählt</div>${a.rez.filter(r=>r.gew).map(r=>`<div class="srow"><span>✓ ${esc(r.t)}</span></div>`).join('')}
   ${a.rez.some(r=>!r.gew)?`<div class="cat" style="margin:10px 0 2px">Nicht gewählt</div>${a.rez.filter(r=>!r.gew).map(r=>`<div class="srow mu"><span>– ${esc(r.t)}</span></div>`).join('')}`:''}
   ${a.listeId&&lists('markt').some(l=>l.id===a.listeId)?`<button class="btn sec" data-a="archtol" data-id="${a.id}">🛒 Zur Einkaufsliste</button>`:''}</div>`).join(''):`<div class="empty">Noch keine abgeschlossenen Wochenplanungen.<br>Sobald eine Auswahl bestätigt wurde, erscheint sie hier.</div>`)}
@@ -790,7 +804,8 @@ A.wcancel=()=>{DB.wochenplan={id:'wp',status:'leer',u:now()};persist()};
 A.wdone=()=>{const w=DB.wochenplan,sel=[...WPICK];if(!sel.length)return toast('Bitte mindestens ein Rezept wählen');
  let lid;if(WTARGET==='new'||!lists('markt').some(l=>l.id===WTARGET)){const d=new Date();lid=uid();DB.listen.push({id:lid,name:`Woche ${d.getDate()}.${d.getMonth()+1}.`,typ:'markt',u:now()})}else lid=WTARGET;
  for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*recF(r),einheit:x.einheit,src:r.titel,srcId:r.id,rez:1})}
- LS.set('act_markt',lid);DB.wochenplan={...w,status:'fertig',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,u:now()};ensureArchive();persist();notify(w.von,'✅ Wochenliste fertig',ME+' hat '+sel.length+' Rezepte ausgewählt – die Einkaufsliste ist fertig.');toast('Einkaufsliste erstellt – '+w.von+' wird benachrichtigt')};
+ LS.set('act_markt',lid);DB.wochenplan={...w,status:'pruefung',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,gewaehlt:now(),u:now()};persist();notify(w.von,'🛒 Einkaufsliste prüfen',ME+' hat '+sel.length+' Rezepte ausgewählt – bitte die Einkaufsliste prüfen und bestätigen.');toast('Einkaufsliste erstellt – '+w.von+' prüft sie jetzt')};
+A.wconfirm=()=>{const w=DB.wochenplan;if(w.status!=='pruefung')return;DB.wochenplan={...w,status:'fertig',bestaetigt:now(),gesehen:false,u:now()};ensureArchive();persist();notify(w.an,'✅ Einkaufsliste bestätigt',ME+' hat die Einkaufsliste geprüft – du kannst einkaufen.');toast('Bestätigt – '+w.an+' wird benachrichtigt')};
 A.wok=()=>{DB.wochenplan={...DB.wochenplan,gesehen:true,status:'leer',u:now()};persist()};
 A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id===id))LS.set('act_markt',id);A.go({v:'liste'})};
 
