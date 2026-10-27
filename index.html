@@ -98,9 +98,10 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.10';
+const VERSION='1.1.0';
 const CHANGELOG=[
-{v:'1.0.10',d:'27.10.2026',t:['Link-Import robuster: sechs Wege zum Laden der Seite gleichzeitig; bei einem Fehler zeigt die App genau, was blockiert war, und bietet „Text einfügen“ oder „Erneut versuchen“ an','Neu: Rezept per Text einfügen (kopierter Rezepttext wird von Claude zum Rezept)']},
+{v:'1.1.0',d:'27.10.2026',t:['Update-Hinweis: die App meldet selbst, wenn auf GitHub eine neuere Version liegt, und aktualisiert sich per Tipp (auch unter Mehr → Info → Nach Update suchen)','Automatische Sicherung in Dropbox (täglich, wöchentlich oder monatlich, Anzahl einstellbar) mit „Jetzt sichern“ und Wiederherstellen aus einer Sicherung','Doppelte Artikel zusammenführen: pro Artikel oder über „Mögliche Doppelte prüfen“; Rezepte, Listen, Favoriten und Snacks werden angepasst','Vorrat: Artikel als „haben wir normalerweise da“ markieren; aus Rezepten landen sie unter „🏠 Haben wir schon?“ (Brauchen wir / Da)','Einkaufsliste teilen (Teilen-Menü, Kopieren, WhatsApp)','Optionale Handy-Benachrichtigungen bei der Wochenplanung über ntfy.sh (in den Einstellungen ein- und ausschaltbar)']},
+ {v:'1.0.10',d:'27.10.2026',t:['Link-Import robuster: sechs Wege zum Laden der Seite gleichzeitig; bei einem Fehler zeigt die App genau, was blockiert war, und bietet „Text einfügen“ oder „Erneut versuchen“ an','Neu: Rezept per Text einfügen (kopierter Rezepttext wird von Claude zum Rezept)']},
  {v:'1.0.9',d:'27.10.2026',t:['Bewertungen: jede Person bewertet Rezepte getrennt mit 1–5 Sternen (Tippen auf den gleichen Stern entfernt die Bewertung); Durchschnitt in der Rezeptübersicht','Neues Flag „⚡ Schnell“ für schnell zubereitete Rezepte (beim Import automatisch erkannt: bis 30 Minuten)','Rezeptliste filterbar nach Thermomix, Schnell und Bewertung (Ø aller, nur eine Person oder von allen, ab 3/4/5 Sternen)']},
  {v:'1.0.8',d:'27.10.2026',t:['Thermomix-Rezepte: Haken im Rezept, „Thermomix“ neben den Portionen in der Rezeptübersicht, Filter „Thermomix“ in der Rezeptliste; beim Import erkennt Claude Thermomix-Rezepte automatisch']},
  {v:'1.0.7',d:'27.10.2026',t:['Archiv: abgeschlossene Wochenplanungen werden automatisch gespeichert (wer die Vorschläge gemacht hat, wer ausgewählt hat, jeweils mit Datum und Uhrzeit, gewählte und nicht gewählte Rezepte); Einträge lassen sich löschen (mit Rückgängig). Zu finden unter Woche → Archiv und im Menü Mehr']},
@@ -218,9 +219,10 @@ function addItem(lid,e){
  const z=e.zid?Z(e.zid):null;
  const split=!!(DB.einst&&DB.einst.meatSplit&&z&&z.kat==='Fleisch & Fisch');const sk=e.srcId||'';
  const ex=DB.items.find(i=>!i.d&&i.lid===lid&&!i.done&&(e.zid?i.zid===e.zid:(!i.zid&&keyOf(i.name)===keyOf(e.name)))&&(i.fuer||'')===(e.fuer||'')&&((i.einheit||'')===unit||i.menge==null||m==null)&&(!split||(!!i.sep&&(i.srcId||'')===sk)));
- if(ex){if(m!=null){if(ex.menge==null){ex.menge=m;ex.einheit=unit}else ex.menge+=m}ex.u=now();return ex}
+ if(ex){if(m!=null){if(ex.menge==null){ex.menge=m;ex.einheit=unit}else ex.menge+=m}if(!e.rez&&ex.vorrat)ex.vorrat=0;ex.u=now();return ex}
  const it={id:uid(),lid,zid:e.zid||null,name:z?z.name:e.name,menge:m,einheit:unit,fuer:e.fuer||'',done:false,u:now()};
  if(split){it.sep=1;it.src=e.src||'';it.srcId=sk}
+ if(e.rez&&z&&z.vorrat)it.vorrat=1;
  DB.items.push(it);return it}
 
 /* =====================  Merge & Sync  ===================== */
@@ -295,6 +297,60 @@ async function syncImages(){
   }catch(e){}}
  if(changed)render()}
 
+/* ---- Gemeinsame Einstellungen (in Dropbox) ---- */
+const EINST_DEF={meatSplit:false,backup:true,backupTage:7,backupKeep:8,notify:false,ntfyBase:''};
+const E=()=>({...EINST_DEF,...(DB.einst||{})});
+function setEinst(p){DB.einst={...E(),...p,u:now()};persist(true)}
+function normDB(){for(const k of ARR)DB[k]=DB[k]||[];DB.wochenplan=DB.wochenplan||{id:'wp',status:'leer',u:0};DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};DB.einst=DB.einst||{meatSplit:false,u:0}}
+
+/* ---- Dropbox: Ordner, Löschen, Textdateien ---- */
+async function dbxList(dir){const r=await fetch('https://api.dropboxapi.com/2/files/list_folder',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Content-Type':'application/json'},body:JSON.stringify({path:dir})});
+ if(r.status===409)return[];if(!r.ok)throw new Error('Dropbox '+r.status);const j=await r.json();return(j.entries||[]).filter(e=>e['.tag']==='file')}
+async function dbxDelete(path){await fetch('https://api.dropboxapi.com/2/files/delete_v2',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Content-Type':'application/json'},body:JSON.stringify({path})})}
+async function dbxPutText(path,text){const r=await fetch('https://content.dropboxapi.com/2/files/upload',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Content-Type':'application/octet-stream','Dropbox-API-Arg':asciiJson({path,mode:{'.tag':'overwrite'},autorename:false,mute:true})},body:text});if(!r.ok)throw new Error('Dropbox-Upload '+r.status)}
+async function dbxGetText(path){const r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+await dbxToken(),'Dropbox-API-Arg':asciiJson({path})}});if(!r.ok)throw new Error('Dropbox '+r.status);return r.text()}
+
+/* ---- Optionale Benachrichtigungen (ntfy.sh) ---- */
+const topicSlug=n=>String(n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
+const ntfyTopic=name=>E().ntfyBase+'-'+topicSlug(name);
+async function notify(toName,title,msg){const e=E();if(!e.notify||!e.ntfyBase||!toName)return false;
+ try{const r=await fetch('https://ntfy.sh/',{method:'POST',body:JSON.stringify({topic:ntfyTopic(toName),title,message:msg,tags:['shopping_cart'],click:REDIRECT})});return r.ok}catch(err){return false}}
+
+/* ---- Automatische Sicherung ---- */
+const bkDir=()=>DBX.path().replace(/[^\/]*$/,'')+'sicherungen';
+const BKRE=/^einkauf-\d{4}-\d\d-\d\d\.json$/;
+let bkBusy=false;
+async function autoBackup(force){
+ if(bkBusy||!DBX.ready())return false;const e=E();if(!force&&e.backup===false)return false;
+ if(!force&&now()-LS.get('bk_chk',0)<3600000)return false;
+ bkBusy=true;LS.set('bk_chk',now());
+ try{const dir=bkDir();const files=(await dbxList(dir)).filter(f=>BKRE.test(f.name)).sort((a,b)=>b.name.localeCompare(a.name));
+  const today=new Date().toLocaleDateString('sv-SE');const last=files[0]&&files[0].name.slice(8,18);
+  const age=last?Math.floor((new Date(today)-new Date(last))/864e5):1e9;
+  if(force||age>=(e.backupTage||7)){const name='einkauf-'+today+'.json';await dbxPutText(dir+'/'+name,JSON.stringify(purge(DB)));if(!files.some(f=>f.name===name)){files.unshift({name});files.sort((a,b)=>b.name.localeCompare(a.name))}LS.set('bk_last',now())}
+  for(const f of files.slice(e.backupKeep||8))await dbxDelete(dir+'/'+f.name);
+  return true}catch(err){return false}finally{bkBusy=false}}
+async function restoreBackup(name){
+ const data=JSON.parse(await dbxGetText(bkDir()+'/'+name));
+ if(!data||typeof data!=='object'||(!Array.isArray(data.rezepte)&&!Array.isArray(data.items)))throw new Error('Datei ist keine gültige Sicherung');
+ const t=now(),nd={...data};
+ for(const k of ARR){const old=DB[k]||[];const bk=(data[k]||[]).map(x=>({...x,u:t}));const ids=new Set(bk.map(x=>x.id));for(const x of old)if(!ids.has(x.id)&&!x.d)bk.push({id:x.id,d:true,u:t});nd[k]=bk}
+ for(const k of ['wochenplan','katOrder','einst'])if(data[k])nd[k]={...data[k],u:t};
+ DB=nd;normDB();if(ME&&!live(DB.nutzer).some(n=>n.id===ME.toLowerCase()))DB.nutzer.push({id:ME.toLowerCase(),name:ME,u:t});
+ persist()}
+
+/* ---- Update-Hinweis ---- */
+let UPD=null;
+const verNew=(cur,nxt)=>{const a=cur.split('.').map(Number),b=nxt.split('.').map(Number);for(let i=0;i<Math.max(a.length,b.length);i++){const d=(b[i]||0)-(a[i]||0);if(d)return d>0}return false};
+async function checkUpdate(force){
+ if(!/^https?:/.test(location.protocol))return undefined;
+ if(!force&&now()-LS.get('upd_chk',0)<30*60000)return UPD?UPD.v:LS.get('upd_latest',null);
+ LS.set('upd_chk',now());
+ try{const r=await fetch(location.pathname.replace(/[^\/]*$/,'')+'index.html?_='+now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
+  const m=(await r.text()).match(/const VERSION='([\d.]+)'/);if(!m)throw new Error('keine Version gefunden');
+  LS.set('upd_latest',m[1]);const had=!!UPD;UPD=verNew(VERSION,m[1])?{v:m[1]}:null;if(!!UPD!==had)render();return m[1]}
+ catch(e){return undefined}}
+
 let syncing=false,syncAgain=false,SS=DBX.ready()?'ok':'off',SERR='',syncRev=LS.get('sync_rev',null),syncTimer=null,lastSync=LS.get('last_sync',0);
 function setStatus(s,err){SS=s;SERR=err||'';const d=$('#sdot');if(d){d.className='dot '+s;d.title=err||''}}
 function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(()=>sync(),900)}
@@ -311,7 +367,7 @@ async function sync(force){
    if(g.up){const up=await dbxUpload(purge(DB),rem.rev);if(up.conflict)continue;syncRev=up.rev}else syncRev=rem.rev;
    LS.set('dirty',0);LS.set('einkauf_db',DB);rebuild();if(g.down||g.up)render();break}
   await syncImages();
-  LS.set('sync_rev',syncRev);lastSync=now();LS.set('last_sync',lastSync);setStatus('ok')
+  LS.set('sync_rev',syncRev);lastSync=now();LS.set('last_sync',lastSync);setStatus('ok');autoBackup()
  }catch(e){setStatus('err',e.message||String(e))}
  finally{syncing=false;if(syncAgain){syncAgain=false;scheduleSync()}}}
 
@@ -347,7 +403,7 @@ function render(){
  scrollTo(0,y)}
 function main(){switch(view){case'rezepte':return viewRezepte();case'woche':return viewWoche();case'snacks':return viewSnacks();case'drogerie':return listView('drogerie');case'fav':return viewFav();case'zut':return viewZut();case'set':return viewSet();case'info':return viewInfo();case'archiv':return viewArchiv();default:return listView('markt')}}
 function wdot(){const w=DB.wochenplan;return (w.status==='vorschlag'&&w.an===ME)||(w.status==='fertig'&&w.von===ME&&!w.gesehen)}
-function banner(){const w=DB.wochenplan;if(view==='woche')return'';
+function banner(){if(UPD)return`<div class="ban" data-a="reload">🔄 Update auf Version ${esc(UPD.v)} verfügbar – tippen zum Aktualisieren</div>`;const w=DB.wochenplan;if(view==='woche')return'';
  if(w.status==='vorschlag'&&w.an===ME)return`<div class="ban" data-a="go" data-v="woche">📅 ${esc(w.von)} hat Rezept-Vorschläge geschickt – jetzt auswählen</div>`;
  if(w.status==='fertig'&&w.von===ME&&!w.gesehen)return`<div class="ban" data-a="go" data-v="woche">✅ ${esc(w.an)} hat ausgewählt – die Wochenliste ist fertig</div>`;
  if(!DBX.ready()&&view==='liste')return`<div class="ban" data-a="go" data-v="set">☁️ Noch nicht mit Dropbox verbunden – Daten liegen nur auf diesem Gerät. Tippen zum Einrichten.</div>`;
@@ -375,6 +431,7 @@ function rowsFor(its){const gk=i=>i.zid?i.lid+'|'+i.zid+'|'+(i.fuer||''):null;co
  for(const i of its){const k=gk(i),g=k&&m.get(k);
   if(g&&g.length>1&&g.some(x=>x.sep)){if(!seen.has(k)){seen.add(k);out.push(groupHTML(g))}}else out.push(rowHTML(i))}
  return out.join('')}
+function vorHTML(i){return`<div class="it"><div class="nm" data-a="editit" data-id="${i.id}">${esc(iname(i))}${i.menge!=null?`<small>${esc(fmtQty(i.menge,i.einheit))}${i.src?' · '+esc(i.src):''}</small>`:''}</div><button class="ib" data-a="vneed" data-id="${i.id}">Brauchen wir</button><button class="ib" data-a="vhave" data-id="${i.id}">✓ Da</button></div>`}
 function rowHTML(i){
  const lad=iladen(i);
  const q=qtyCtl(i);
@@ -383,13 +440,14 @@ function listView(typ){
  const l=actList(typ);const items=live(DB.items).filter(i=>i.lid===l.id);const flt=FLT[typ]||'';
  const laeden=[...new Set(items.map(iladen).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
  const ok=i=>!flt||iladen(i)===flt;
- const open=items.filter(i=>!i.done&&ok(i)),done=items.filter(i=>i.done&&ok(i));
+ const open=items.filter(i=>!i.done&&!i.vorrat&&ok(i)),done=items.filter(i=>i.done&&ok(i)),vor=items.filter(i=>!i.done&&i.vorrat&&ok(i));
  const order=catsOf(typ);for(const i of open){const k=ikat(i);if(!order.includes(k))order.push(k)}
  let h=`<div class="bar">${typ==='markt'?`<select data-in="actlist">${lists(typ).map(x=>`<option value="${x.id}" ${x.id===l.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="ib" data-a="newlist">＋</button>`:`<b class="ttl">🧴 ${esc(l.name)}</b>`}<button class="ib" data-a="listmenu" data-typ="${typ}">⋯</button></div>`;
  h+=`<button class="addbar" data-a="addmanual" data-typ="${typ}">＋ Artikel hinzufügen …</button>`;
  if(laeden.length)h+=`<div class="chips"><button class="chip ${flt?'':'on'}" data-a="flt" data-typ="${typ}" data-v="">Alle</button>${laeden.map(x=>`<button class="chip ${flt===x?'on':''}" data-a="flt" data-typ="${typ}" data-v="${esc(x)}">📍 ${esc(x)}</button>`).join('')}</div>`;
  for(const k of order){const its=open.filter(i=>ikat(i)===k);if(its.length)h+=`<div class="cat">${esc(k)}</div>`+rowsFor(its.sort(byName))}
- if(!open.length&&!done.length)h+=`<div class="empty">Die Liste ist leer.<br>Füge Artikel hinzu${typ==='markt'?', nimm Rezepte, Favoriten oder die Wochenplanung':''}.</div>`;
+ if(!open.length&&!done.length&&!vor.length)h+=`<div class="empty">Die Liste ist leer.<br>Füge Artikel hinzu${typ==='markt'?', nimm Rezepte, Favoriten oder die Wochenplanung':''}.</div>`;
+ if(vor.length)h+=`<div class="cat">🏠 Haben wir schon? (${vor.length})</div><p class="mu" style="margin:0 4px 6px">Diese Artikel sind als Vorrat markiert. Nachsehen, ob noch genug da ist.</p>`+vor.sort(byName).map(vorHTML).join('')+`<button class="lnk" data-a="vall" data-lid="${l.id}">Alle sind vorhanden – entfernen</button>`;
  if(done.length)h+=`<div class="cat">Erledigt (${done.length})</div>`+done.sort(byName).map(rowHTML).join('')+`<button class="lnk" data-a="clrdone" data-lid="${l.id}">Erledigte entfernen</button>`;
  return h}
 IN.actlist=v=>{LS.set('act_markt',v);render()};
@@ -398,11 +456,24 @@ A.tog=d=>{const i=item(d.id);i.done=!i.done;i.u=now();persist()};
 A.inc=d=>{const i=item(d.id);if(i.menge==null){i.menge=1;if(!i.einheit)i.einheit='Stück'}else i.menge+=stepOf(i.menge,i.einheit);i.u=now();persist()};
 function removeItem(i,msg){const snap={...i};i.d=true;i.u=now();persist();toast(msg||'Entfernt',()=>{const j=item(snap.id);Object.assign(j,snap,{d:false,u:now()});persist()})}
 A.dec=d=>{const i=item(d.id);const s=stepOf(i.menge,i.einheit);if(i.menge-s<=0)return removeItem(i,iname(i)+' entfernt');i.menge-=s;i.u=now();persist()};
+A.vneed=d=>{const i=item(d.id);i.vorrat=0;i.u=now();persist()};
+A.vhave=d=>removeItem(item(d.id),item(d.id).name+' ist vorrätig');
+A.vall=d=>{const its=live(DB.items).filter(i=>i.lid===d.lid&&i.vorrat&&!i.done);if(!its.length)return;const snaps=its.map(i=>({...i}));for(const i of its){i.d=true;i.u=now()}persist();toast(its.length+' Vorrats-Artikel entfernt',()=>{for(const s of snaps)Object.assign(item(s.id),s,{d:false,u:now()});persist()})};
 A.clrdone=d=>{const its=live(DB.items).filter(i=>i.lid===d.lid&&i.done);if(!its.length)return;const snaps=its.map(i=>({...i}));for(const i of its){i.d=true;i.u=now()}persist();toast(its.length+' erledigte entfernt',()=>{for(const s of snaps){Object.assign(item(s.id),s,{d:false,u:now()})}persist()})};
 A.addmanual=d=>{const l=actList(d.typ);pickZutat({typ:d.typ,keepOpen:true,title:'Hinzufügen zu „'+l.name+'“',onPick:z=>{addItem(l.id,{zid:z.id,name:z.name,menge:defQty(z.eh),einheit:z.eh});persist();toast(z.name+' ✓')}})};
 A.newlist=()=>ask('Neue Liste','',n=>{const l={id:uid(),name:n,typ:'markt',u:now()};DB.listen.push(l);LS.set('act_markt',l.id);persist()},'z. B. Wochenmarkt');
 A.listmenu=d=>{const typ=d.typ,l=actList(typ);
- const el=sheet(l.name,`${typ==='markt'?`<button class="opt" data-a="lrename" data-typ="${typ}"><span>✏️</span>Liste umbenennen</button>`:''}<button class="opt" data-a="lreset" data-typ="${typ}"><span>↺</span>Alle Haken entfernen</button><button class="opt" data-a="clrdone2" data-typ="${typ}"><span>🧹</span>Erledigte entfernen</button><button class="opt" data-a="katorder" data-typ="${typ}"><span>↕️</span>Reihenfolge der Kategorien</button>${typ==='markt'&&lists(typ).length>1?`<button class="opt" data-a="ldel" data-typ="${typ}"><span>🗑</span>Liste löschen</button>`:''}`)};
+ const el=sheet(l.name,`${typ==='markt'?`<button class="opt" data-a="lrename" data-typ="${typ}"><span>✏️</span>Liste umbenennen</button>`:''}<button class="opt" data-a="lreset" data-typ="${typ}"><span>↺</span>Alle Haken entfernen</button><button class="opt" data-a="clrdone2" data-typ="${typ}"><span>🧹</span>Erledigte entfernen</button><button class="opt" data-a="lshare" data-typ="${typ}"><span>📤</span>Liste teilen</button><button class="opt" data-a="katorder" data-typ="${typ}"><span>↕️</span>Reihenfolge der Kategorien</button>${typ==='markt'&&lists(typ).length>1?`<button class="opt" data-a="ldel" data-typ="${typ}"><span>🗑</span>Liste löschen</button>`:''}`)};
+function shareText(typ){const l=actList(typ);const its=live(DB.items).filter(i=>i.lid===l.id&&!i.done&&!i.vorrat);
+ const d=new Date();let t=`🛒 ${l.name} (${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()})\n`;
+ const order=catsOf(typ);for(const i of its){const k=ikat(i);if(!order.includes(k))order.push(k)}
+ for(const k of order){const g=its.filter(i=>ikat(i)===k).sort(byName);if(g.length)t+=`\n${k.toUpperCase()}\n`+g.map(i=>`☐ ${iname(i)}${i.menge!=null?' – '+fmtQty(i.menge,i.einheit):''}${iladen(i)?' ('+iladen(i)+')':''}`).join('\n')+'\n'}
+ return its.length?t.trim():t+'\n(Die Liste ist leer)'}
+A.lshare=d=>{closeSheet();const el=sheet('Liste teilen',`<textarea class="srch" rows="12" style="font-family:inherit">${esc(shareText(d.typ))}</textarea>${navigator.share?'<button class="btn" data-a="shnat">📤 Teilen …</button>':''}<button class="btn ${navigator.share?'sec':''}" data-a="shcopy">📋 Kopieren</button><button class="btn sec" data-a="shwa">💬 Per WhatsApp senden</button><p class="mu">Du kannst den Text vorher noch bearbeiten. Abgehakte Artikel und Vorrats-Artikel sind nicht enthalten.</p>`)};
+const shText=b=>b.closest('.ov').querySelector('textarea').value;
+A.shnat=async(d,b)=>{try{await navigator.share({title:'Einkaufsliste',text:shText(b)})}catch(e){}};
+A.shcopy=async(d,b)=>{const t=shText(b);try{await navigator.clipboard.writeText(t)}catch(e){const ta=b.closest('.ov').querySelector('textarea');ta.select();document.execCommand('copy')}toast('In die Zwischenablage kopiert')};
+A.shwa=(d,b)=>{window.open('https://wa.me/?text='+encodeURIComponent(shText(b)),'_blank')};
 A.lrename=d=>{const l=actList(d.typ);closeSheet();ask('Liste umbenennen',l.name,n=>{l.name=n;l.u=now();persist()})};
 A.lreset=d=>{const l=actList(d.typ);for(const i of live(DB.items))if(i.lid===l.id&&i.done){i.done=false;i.u=now()}closeSheet();persist()};
 A.clrdone2=d=>{const l=actList(d.typ);closeSheet();A.clrdone({lid:l.id})};
@@ -418,11 +489,12 @@ A.editit=d=>{const i=item(d.id),z=Z(i.zid),typ=(lists('markt').some(l=>l.id===i.
  const el=sheet(iname(i),`<label class="lb">Menge</label><div class="row"><input class="srch" inputmode="decimal" name="m" value="${i.menge==null?'':fmtNum(i.menge)}"><select class="u" name="e">${unitOpts(i.einheit)}</select></div>
  <label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(typ).map(k=>`<option ${k===ikat(i)?'selected':''}>${esc(k)}</option>`).join('')}</select>
  <label class="lb">Wo gibt es das? (Laden)</label><input class="srch" name="l" list="ladenlist" value="${esc(iladen(i))}" placeholder="z. B. Rewe, Metzger, dm"><datalist id="ladenlist">${[...new Set(live(DB.zutaten).map(x=>x.laden).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+ ${z?`<label class="chk"><input type="checkbox" name="v" ${z.vorrat?'checked':''}><span>🏠 Vorrat – haben wir normalerweise da</span></label>`:''}
  <button class="btn" data-a="itsave" data-id="${i.id}" data-typ="${typ}">Speichern</button><button class="btn sec" data-a="itfav" data-id="${i.id}" data-typ="${typ}">⭐ Zu Favoriten</button><button class="btn dng" data-a="itdel" data-id="${i.id}">Entfernen</button>`)};
 A.itsave=(d,b)=>{const el=b.closest('.ov'),i=item(d.id),f=n=>el.querySelector(`[name=${n}]`).value;
  i.menge=parseNum(f('m'));i.einheit=f('e');if(i.menge==null&&!i.einheit)i.einheit='';
  const kat=f('k'),lad=f('l').trim();const z=Z(i.zid);
- if(z){z.kat=kat;z.laden=lad;z.u=now();delete i.laden}else{i.kat=kat;i.laden=lad}
+ if(z){z.kat=kat;z.laden=lad;const vc=el.querySelector('[name=v]');if(vc){z.vorrat=vc.checked;if(!vc.checked)i.vorrat=0}z.u=now();delete i.laden}else{i.kat=kat;i.laden=lad}
  i.u=now();closeSheet(el);persist()};
 A.itdel=(d,b)=>{closeSheet(b.closest('.ov'));removeItem(item(d.id))};
 A.itfav=(d,b)=>{const i=item(d.id);if(!i.zid)return toast('Nur für Artikel aus dem Katalog');
@@ -510,8 +582,8 @@ A.rpset=(d,b)=>{RD.por=+d.n;drawRec(b.closest('.ov'))};
 A.rstd=(d,b)=>{const r=Rz(RD.id);r.std=RD.por;r.u=now();persist();drawRec(b.closest('.ov'));toast('★ Standard: '+RD.por+' Portionen')};
 A.rpor=(d,b)=>{RD.por=Math.max(1,RD.por+ +d.d);drawRec(b.closest('.ov'))};
 A.rtolist=(d,b)=>{const r=Rz(RD.id),f=RD.por/r.portionen,l=live(DB.listen).find(x=>x.id===RD.lid)||actList('markt');
- for(const x of r.zutaten)addItem(l.id,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*f,einheit:x.einheit,src:r.titel,srcId:r.id});
- LS.set('act_markt',l.id);closeSheet(b.closest('.ov'));persist();toast(r.zutaten.length+' Zutaten zu „'+l.name+'“ hinzugefügt')};
+ for(const x of r.zutaten)addItem(l.id,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*f,einheit:x.einheit,src:r.titel,srcId:r.id,rez:1});
+ LS.set('act_markt',l.id);closeSheet(b.closest('.ov'));persist();const nv=live(DB.items).filter(i=>i.lid===l.id&&i.vorrat&&!i.done).length;toast(r.zutaten.length+' Zutaten zu „'+l.name+'“ hinzugefügt'+(nv?' – '+nv+' davon im Vorrat zum Prüfen':''))};
 A.redit=(d,b)=>{const r=Rz(RD.id);closeSheet(b.closest('.ov'));openEditor(r)};
 A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id);r.d=true;r.u=now();closeSheet(b.closest('.ov'));persist()};
 
@@ -631,15 +703,39 @@ A.favall=()=>{const fs=live(DB.favoriten).filter(f=>f.typ===FAVT);fs.forEach(fav
 
 /* =====================  Zutaten verwalten  ===================== */
 const zlist=()=>{const q=ZQ;const rs=q?[...searchZutaten(q,'markt'),...searchZutaten(q,'drogerie')]:live(DB.zutaten).sort(byName).slice(0,150);
- return rs.map(z=>`<div class="prow" data-a="zedit" data-id="${z.id}"><span>${esc(z.name)}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}</span><small>${esc(z.kat)}</small></div>`).join('')||'<div class="empty">Nichts gefunden</div>'};
-function viewZut(){return`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><input class="srch" placeholder="Artikel suchen …" data-in="zsearch" value="${esc(ZQ)}"><button class="ib" data-a="znew">＋</button></div><div id="zlist">${zlist()}</div>`}
+ return rs.map(z=>`<div class="prow" data-a="zedit" data-id="${z.id}"><span>${esc(z.name)}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}${z.vorrat?' 🏠':''}</span><small>${esc(z.kat)}</small></div>`).join('')||'<div class="empty">Nichts gefunden</div>'};
+function viewZut(){const nd=dupCandidates().length;return`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><input class="srch" placeholder="Artikel suchen …" data-in="zsearch" value="${esc(ZQ)}"><button class="ib" data-a="znew">＋</button></div><button class="addbar" data-a="zdups">🔀 Mögliche Doppelte prüfen${nd?' ('+nd+')':''}</button><div id="zlist">${zlist()}</div>`}
 IN.zsearch=v=>{ZQ=v;$('#zlist').innerHTML=zlist()};
 A.znew=()=>{const el=sheet('Neuer Artikel',`<div class="seg"><button data-a="znt" data-t="markt">Einkauf</button><button data-a="znt" data-t="drogerie">Drogerie</button></div>`)};
 A.znt=(d,b)=>{closeSheet(b.closest('.ov'));ask('Name des Artikels','',n=>newZutatDialog(n,d.t,()=>persist()))};
 A.zedit=d=>{const z=Z(d.id);
- sheet(z.name,`<label class="lb">Name</label><input class="srch" name="n" value="${esc(z.name)}"><label class="lb">Auch bekannt als (Komma-getrennt, z. B. „gelbe Paprika“)</label><input class="srch" name="a" value="${esc((z.alias||[]).join(', '))}"><label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(z.typ).map(k=>`<option ${k===z.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Wo gibt es das?</label><input class="srch" name="l" value="${esc(z.laden||'')}"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select><button class="btn" data-a="zsave" data-id="${z.id}">Speichern</button><button class="btn dng" data-a="zdel" data-id="${z.id}">Löschen</button>`)};
+ sheet(z.name,`<label class="lb">Name</label><input class="srch" name="n" value="${esc(z.name)}"><label class="lb">Auch bekannt als (Komma-getrennt, z. B. „gelbe Paprika“)</label><input class="srch" name="a" value="${esc((z.alias||[]).join(', '))}"><label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(z.typ).map(k=>`<option ${k===z.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Wo gibt es das?</label><input class="srch" name="l" value="${esc(z.laden||'')}"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select><label class="chk"><input type="checkbox" name="v" ${z.vorrat?'checked':''}><span>🏠 Vorrat – haben wir normalerweise da (Rezept-Zutaten landen dann unter „Haben wir schon?“)</span></label><button class="btn" data-a="zsave" data-id="${z.id}">Speichern</button><button class="btn sec" data-a="zmerge" data-id="${z.id}">🔀 Mit anderem Artikel zusammenführen</button><button class="btn dng" data-a="zdel" data-id="${z.id}">Löschen</button>`)};
 A.zsave=(d,b)=>{const el=b.closest('.ov'),z=Z(d.id),f=n=>el.querySelector(`[name=${n}]`).value.trim();if(!f('n'))return;
- z.name=f('n');z.alias=f('a').split(',').map(s=>s.trim()).filter(Boolean);z.kat=f('k');z.laden=f('l');z.eh=f('e');z.u=now();closeSheet(el);persist()};
+ z.name=f('n');z.alias=f('a').split(',').map(s=>s.trim()).filter(Boolean);z.kat=f('k');z.laden=f('l');z.eh=f('e');z.vorrat=el.querySelector('[name=v]').checked;z.u=now();closeSheet(el);persist()};
+const lev=(a,b)=>{const m=[...Array(a.length+1)].map((_,i)=>[i]);for(let j=1;j<=b.length;j++)m[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length]};
+function dupCandidates(){const zs=live(DB.zutaten),ign=LS.get('dup_ign',{}),out=[];const norm=z=>z.name.toLowerCase().replace(/[^a-zäöüß]/g,'');
+ for(let i=0;i<zs.length;i++)for(let j=i+1;j<zs.length;j++){const a=zs[i],b=zs[j];if(a.typ!==b.typ||ign[a.id+'|'+b.id]||ign[b.id+'|'+a.id])continue;const x=norm(a),y=norm(b);if(!x||!y)continue;
+  const sh=Math.min(x.length,y.length);if(x===y||(sh>=8&&(x.includes(y)||y.includes(x)))||(sh>=6&&lev(x,y)<=2))out.push([a,b])}
+ return out.slice(0,50)}
+function mergeZutat(src,t){const T=now();let n=0;
+ for(const r of DB.rezepte)if(!r.d&&r.zutaten.some(x=>x.zid===src.id)){for(const x of r.zutaten)if(x.zid===src.id){x.zid=t.id;x.n=t.name}r.u=T;n++}
+ for(const i of DB.items)if(!i.d&&i.zid===src.id){i.zid=t.id;i.name=t.name;i.u=T;n++}
+ for(const f of DB.favoriten)if(!f.d&&f.zid===src.id){f.zid=t.id;f.name=t.name;f.u=T}
+ for(const s of DB.snacks)if(!s.d&&s.zid===src.id){s.zid=t.id;s.name=t.name;s.u=T}
+ const fs=new Set();for(const f of DB.favoriten)if(!f.d){const k=f.typ+'|'+f.zid;if(fs.has(k)){f.d=true;f.u=T}else fs.add(k)}
+ const ss=new Set();for(const s of DB.snacks)if(!s.d){const k=s.person.toLowerCase()+'|'+s.zid;if(ss.has(k)){s.d=true;s.u=T}else ss.add(k)}
+ const m=new Map();for(const i of DB.items){if(i.d||i.done||i.sep||i.zid!==t.id)continue;const k=i.lid+'|'+(i.fuer||'');const p=m.get(k);if(!p){m.set(k,i);continue}
+  if(p.menge==null||i.menge==null||(p.einheit||'')===(i.einheit||'')){if(i.menge!=null){p.menge=(p.menge||0)+i.menge;if(!p.einheit)p.einheit=i.einheit}if(!i.vorrat)p.vorrat=0;p.u=T;i.d=true;i.u=T}}
+ t.alias=[...new Set([...(t.alias||[]),src.name,...(src.alias||[])])].filter(a=>a.toLowerCase()!==t.name.toLowerCase());t.u=T;src.d=true;src.u=T;rebuild();return n}
+A.zmerge=(d,b)=>{const src=Z(d.id);closeSheet(b.closest('.ov'));
+ pickZutat({typ:src.typ,title:'„'+src.name+'“ zusammenführen mit … (dieser bleibt)',onPick:t=>{if(t.id===src.id)return toast('Bitte einen anderen Artikel wählen');
+  if(!confirm('„'+src.name+'“ in „'+t.name+'“ zusammenführen? Rezepte, Listen, Favoriten und Snacks verwenden danach „'+t.name+'“.'))return;
+  const n=mergeZutat(src,t);persist();toast('Zusammengeführt ('+n+' Einträge angepasst)')}})};
+A.zdups=()=>{const el=sheet('Mögliche Doppelte','');drawDups(el)};
+function drawDups(el){const ps=dupCandidates();
+ el.querySelector('.shb').innerHTML=ps.length?`<p class="mu">Ähnliche Artikel. Tippe auf den Namen, der bleiben soll. Der andere wird eingearbeitet.</p>`+ps.map(([a,b])=>`<div class="card"><div class="row"><button class="ib" style="flex:1" data-a="zmk" data-keep="${a.id}" data-src="${b.id}">${esc(a.name)}</button><span>↔</span><button class="ib" style="flex:1" data-a="zmk" data-keep="${b.id}" data-src="${a.id}">${esc(b.name)}</button></div><button class="lnk" data-a="zign" data-a1="${a.id}" data-b1="${b.id}">Nein, verschieden</button></div>`).join(''):'<div class="empty">Keine ähnlichen Artikel gefunden.</div>'}
+A.zmk=(d,b)=>{const keep=Z(d.keep),src=Z(d.src);if(!confirm('„'+src.name+'“ in „'+keep.name+'“ zusammenführen?'))return;mergeZutat(src,keep);persist();drawDups(b.closest('.ov'));toast('Zusammengeführt')};
+A.zign=(d,b)=>{const g=LS.get('dup_ign',{});g[d.a1+'|'+d.b1]=1;LS.set('dup_ign',g);drawDups(b.closest('.ov'));render()};
 A.zdel=(d,b)=>{if(!confirm('Artikel aus dem Katalog löschen? Bestehende Einträge in Rezepten und Listen behalten ihren Namen.'))return;const z=Z(d.id);z.d=true;z.u=now();closeSheet(b.closest('.ov'));persist()};
 
 /* =====================  Wochenplanung  ===================== */
@@ -668,7 +764,7 @@ function viewWoche(){
 IN.wto=v=>{WTO=v};IN.wtarget=v=>{WTARGET=v};
 A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:WPICK;el.checked?s.add(d.id):s.delete(d.id)};
 A.wsend=()=>{if(!WSEL.size)return toast('Bitte mindestens ein Rezept wählen');const to=WTO.trim();if(!to)return toast('Bitte einen Empfänger angeben');
- DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],gesendet:now(),u:now()};WSEL=new Set();persist();toast('Vorschläge an '+to+' gesendet')};
+ DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],gesendet:now(),u:now()};WSEL=new Set();persist();notify(to,'📅 Neue Rezept-Vorschläge',ME+' hat '+DB.wochenplan.vorschlaege.length+' Rezepte vorgeschlagen – jetzt auswählen.');toast('Vorschläge an '+to+' gesendet')};
 function ensureArchive(){const w=DB.wochenplan;if(!w||w.status!=='fertig'||!w.auswahl||!w.auswahl.length)return false;
  const id='a_'+w.u;if(DB.archiv.some(a=>a.id===id))return false;
  DB.archiv.push({id,von:w.von,an:w.an,gesendet:w.gesendet||null,gewaehlt:w.u,listeId:w.listeId||'',rez:(w.vorschlaege||[]).map(r=>({id:r,t:Rz(r)?.titel||'(gelöscht)',gew:w.auswahl.includes(r)})),u:now()});return true}
@@ -687,8 +783,8 @@ A.archtol=d=>{const a=DB.archiv.find(x=>x.id===d.id);LS.set('act_markt',a.listeI
 A.wcancel=()=>{DB.wochenplan={id:'wp',status:'leer',u:now()};persist()};
 A.wdone=()=>{const w=DB.wochenplan,sel=[...WPICK];if(!sel.length)return toast('Bitte mindestens ein Rezept wählen');
  let lid;if(WTARGET==='new'||!lists('markt').some(l=>l.id===WTARGET)){const d=new Date();lid=uid();DB.listen.push({id:lid,name:`Woche ${d.getDate()}.${d.getMonth()+1}.`,typ:'markt',u:now()})}else lid=WTARGET;
- for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*recF(r),einheit:x.einheit,src:r.titel,srcId:r.id})}
- LS.set('act_markt',lid);DB.wochenplan={...w,status:'fertig',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,u:now()};ensureArchive();persist();toast('Einkaufsliste erstellt – '+w.von+' wird benachrichtigt')};
+ for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*recF(r),einheit:x.einheit,src:r.titel,srcId:r.id,rez:1})}
+ LS.set('act_markt',lid);DB.wochenplan={...w,status:'fertig',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,u:now()};ensureArchive();persist();notify(w.von,'✅ Wochenliste fertig',ME+' hat '+sel.length+' Rezepte ausgewählt – die Einkaufsliste ist fertig.');toast('Einkaufsliste erstellt – '+w.von+' wird benachrichtigt')};
 A.wok=()=>{DB.wochenplan={...DB.wochenplan,gesehen:true,status:'leer',u:now()};persist()};
 A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id===id))LS.set('act_markt',id);A.go({v:'liste'})};
 
@@ -740,6 +836,11 @@ function viewSet(){
   ${conn?`<button class="btn sec" data-a="syncnow">Jetzt synchronisieren</button><button class="btn dng" data-a="ddisc">Verbindung trennen</button>`:''}
   <p class="mu">${SS==='err'?'⚠️ '+esc(SERR):(lastSync?'Letzte Synchronisation: '+new Date(lastSync).toLocaleString('de-DE'):'')}</p></div>
  <div class="card"><b>🛒 Einkaufsliste</b><label class="chk"><input type="checkbox" data-a="meatsplit" ${DB.einst.meatSplit?'checked':''}><span>Fleisch & Fisch <b>nicht</b> zusammenrechnen</span></label><p class="mu">Aus: gleiche Zutaten werden addiert (1000 g). An: jedes Rezept bleibt ein eigener Posten, z. B. „Hähnchenbrust 600 g + 400 g“, und lässt sich einzeln abhaken. Gilt für alles, was ab jetzt hinzugefügt wird. Die Einstellung gilt für alle Geräte.</p></div>
+ <div class="card"><b>💾 Automatische Sicherung</b>${conn?`<label class="chk"><input type="checkbox" data-a="bkon" ${E().backup!==false?'checked':''}><span>Regelmäßig in Dropbox sichern</span></label><label class="lb">Rhythmus</label><select class="srch" data-in="bkdays">${[[1,'täglich'],[7,'wöchentlich'],[30,'monatlich']].map(([v,l])=>`<option value="${v}" ${E().backupTage===v?'selected':''}>${l}</option>`).join('')}</select><label class="lb">Wie viele Sicherungen aufheben?</label><select class="srch" data-in="bkkeep">${[4,8,12,24].map(v=>`<option ${E().backupKeep===v?'selected':''}>${v}</option>`).join('')}</select><button class="btn sec" data-a="bknow">Jetzt sichern</button><button class="btn sec" data-a="bklist">Sicherungen ansehen / wiederherstellen</button><p class="mu">Gesichert wird die Datenbank (Rezepte, Listen, …) im Ordner „sicherungen“ neben deiner Datei. Rezeptbilder liegen separat in „bilder“. Die Einstellung gilt für alle Geräte.</p>`:'<p class="mu">Zuerst mit Dropbox verbinden.</p>'}</div>
+ <div class="card"><b>🔔 Benachrichtigungen (optional)</b><label class="chk"><input type="checkbox" data-a="ntoggle" ${E().notify?'checked':''}><span>Handy-Nachrichten bei der Wochenplanung</span></label>${E().notify&&E().ntfyBase?`<p class="mu">Du bekommst eine Nachricht, wenn dir jemand Vorschläge schickt, und der andere, wenn du ausgewählt hast. Dafür nutzt die App den kostenlosen Dienst ntfy.sh.</p>
+  <label class="lb">Dein Kanal (wie ein Passwort behandeln)</label><input class="srch" readonly value="${esc(ntfyTopic(ME))}" onclick="this.select()">
+  <p class="mu"><b>Einrichten:</b> 1. App „ntfy“ aus dem Play Store installieren. 2. In der ntfy-App auf ＋ tippen. 3. Den Kanal oben als Themenname eintragen, Server ntfy.sh lassen, „Abonnieren“. Dein Partner macht dasselbe mit seinem eigenen Kanal, den er in seinen Einstellungen sieht.</p>
+  <button class="btn sec" data-a="ntest">🔔 Test-Nachricht an mich</button><button class="btn sec" data-a="ncopy">📋 Kanalnamen kopieren</button><p class="mu">Die Nachrichten enthalten keine Rezeptnamen, nur Namen und Anzahl. Die Einstellung gilt für alle Geräte; aus lässt die App nichts versenden.</p>`:'<p class="mu">Aus. Es wird nichts versendet.</p>'}</div>
  <div class="card"><b>🤖 Claude (Foto- & Link-Import)</b>
   <label class="lb">API-Key</label><input class="srch" type="password" data-in="ckey" value="${esc(LS.get('claude_key',''))}" placeholder="sk-ant-…" autocomplete="off">
   <label class="lb">Modell</label><input class="srch" data-in="cmodel" value="${esc(LS.get('claude_model','claude-sonnet-5-5'))}">
@@ -761,27 +862,41 @@ A.ctest=async()=>{
   else if(r.status===429)set('⚠️ Key gültig, aber Limit erreicht (429). Später erneut versuchen.');
   else set('❌ Fehler '+r.status+': '+(j.error?.message||'unbekannt'));
  }catch(e){set('❌ Keine Verbindung möglich. Internet prüfen. ('+(e.message||e)+')')}};
-A.meatsplit=(d,el)=>{DB.einst={meatSplit:el.checked,u:now()};persist(true);toast(el.checked?'Fleisch & Fisch wird einzeln aufgeführt':'Fleisch & Fisch wird zusammengerechnet')};
+A.meatsplit=(d,el)=>{setEinst({meatSplit:el.checked});toast(el.checked?'Fleisch & Fisch wird einzeln aufgeführt':'Fleisch & Fisch wird zusammengerechnet')};
+A.bkon=(d,el)=>{setEinst({backup:el.checked})};
+IN.bkdays=v=>setEinst({backupTage:+v});IN.bkkeep=v=>setEinst({backupKeep:+v});
+A.bknow=async()=>{toast('Sicherung läuft …');const ok=await autoBackup(true);toast(ok?'✅ Sicherung erstellt':'❌ Sicherung fehlgeschlagen – Dropbox verbunden?')};
+A.bklist=async()=>{const el=sheet('Sicherungen','<div class="spin"></div>');const body=el.querySelector('.shb');
+ try{const fs=(await dbxList(bkDir())).filter(f=>BKRE.test(f.name)).sort((a,b)=>b.name.localeCompare(a.name));
+  body.innerHTML=fs.length?`<p class="mu">Tippe auf eine Sicherung, um den Stand von damals wiederherzustellen. Änderungen seit damals gehen dabei verloren (auch auf dem anderen Handy).</p>`+fs.map(f=>`<div class="prow" data-a="bkrestore" data-n="${esc(f.name)}"><span>${esc(f.name.slice(8,18).split('-').reverse().join('.'))}</span><small>${Math.round((f.size||0)/1024)||1} KB</small></div>`).join(''):'<div class="empty">Noch keine Sicherungen vorhanden.</div>'}
+ catch(e){body.innerHTML='<div class="empty">Konnte Sicherungen nicht laden: '+esc(e.message)+'</div>'}};
+A.bkrestore=async(d,b)=>{const dt=d.n.slice(8,18).split('-').reverse().join('.');if(!confirm('Stand vom '+dt+' wiederherstellen? Der aktuelle Stand wird ersetzt.'))return;const el=b.closest('.ov');
+ try{await restoreBackup(d.n);closeSheet(el);toast('Sicherung vom '+dt+' wiederhergestellt')}catch(e){toast(e.message||String(e))}};
+A.updchk=async()=>{toast('Suche nach Updates …');const v=await checkUpdate(true);render();toast(v===undefined?'Prüfung nicht möglich (offline?)':(UPD?'Update '+UPD.v+' verfügbar':'Du hast die neueste Version'))};
+A.ntoggle=(d,el)=>{let base=E().ntfyBase;if(el.checked&&!base){const a=crypto.getRandomValues(new Uint8Array(8));base='einkauf-'+[...a].map(x=>(x%36).toString(36)).join('')}setEinst({notify:el.checked,ntfyBase:base});render();toast(el.checked?'Benachrichtigungen eingeschaltet':'Benachrichtigungen ausgeschaltet')};
+A.ntest=async()=>{const ok=await notify(ME,'🔔 Test','Wenn du das siehst, funktionieren die Benachrichtigungen.');toast(ok?'Gesendet – ist die ntfy-App abonniert?':'Senden fehlgeschlagen (Internet?)')};
+A.ncopy=async()=>{try{await navigator.clipboard.writeText(ntfyTopic(ME));toast('Kanalname kopiert')}catch(e){toast('Bitte den Namen im Feld markieren und kopieren')}};
 A.dconnect=()=>dbxConnect();
 A.ddisc=()=>{if(!confirm('Verbindung zu Dropbox trennen? Die Daten bleiben auf diesem Gerät erhalten.'))return;LS.set('dbx_tok',null);LS.set('sync_rev',null);syncRev=null;setStatus('off');render()};
 A.export=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,1)],{type:'application/json'}));a.download='einkauf-sicherung-'+new Date().toISOString().slice(0,10)+'.json';a.click()};
 function viewInfo(){
  return`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><b class="ttl">ℹ️ Info</b></div>
  <div class="card"><b>Einkauf – gemeinsame Einkaufsliste</b><small>Version ${VERSION} · Angemeldet als ${esc(ME)}</small><small>Dropbox: ${DBX.ready()?'verbunden':'nicht verbunden'}${lastSync?' · zuletzt '+new Date(lastSync).toLocaleString('de-DE'):''}</small></div>
+ <div class="card"><b>Updates</b><small>${UPD?'🔄 Neue Version '+esc(UPD.v)+' verfügbar':(LS.get('upd_latest','')?'✅ Du hast die neueste Version':'Noch nicht geprüft')}</small><button class="btn sec" data-a="updchk">Nach Update suchen</button>${UPD?'<button class="btn" data-a="reload">Jetzt aktualisieren</button>':''}</div>
  <div class="cat">Versionsverlauf</div>${CHANGELOG.map(c=>`<div class="ver"><b>Version ${esc(c.v)}</b> <span class="mu">– ${esc(c.d)}</span><ul>${c.t.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
  <button class="btn sec" data-a="reload">App neu laden (Update holen)</button>`}
-A.reload=async()=>{try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.reload()};
+A.reload=async()=>{try{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();for(const k of await caches.keys())await caches.delete(k)}catch(e){}location.replace(REDIRECT+'?u='+now())};
 
 /* =====================  Start  ===================== */
 async function boot(){
  rebuild();if(ensureArchive())persist(true);render();
  IMG.all().then(o=>{IMGM=o;for(const k in o)IMGC[k]=o[k].data;render()});
- const q=new URLSearchParams(location.search);
+ const q=new URLSearchParams(location.search);if(q.get('u'))history.replaceState(null,'',REDIRECT);
  if(q.get('code')){try{await dbxExchange(q.get('code'));toast('Mit Dropbox verbunden ✅');LS.set('dirty',1);view='liste'}catch(e){toast(e.message)}history.replaceState(null,'',REDIRECT);render()}
  if(!ME)askName(true);
- sync(true);
- setInterval(()=>{if(!document.hidden)sync()},20000);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+ sync(true);checkUpdate();
+ setInterval(()=>{if(!document.hidden){sync();checkUpdate()}},20000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){sync();checkUpdate()}});
  addEventListener('online',()=>sync());
  if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{})}
 boot();

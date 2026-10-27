@@ -45,8 +45,14 @@ Ohne Key funktionieren Links nur bei Seiten, die ihr Rezept maschinenlesbar anbi
 Neue `index.html` (und `sw.js`) im GitHub-Repository hochladen (**Add file → Upload files**, gleiche Namen überschreiben).
 Auf den Handys: **Mehr → Info → App neu laden**.
 
+## Neu in Version 1.1.0
+
+- **Update-Hinweis:** Liegt auf GitHub eine neuere Version, erscheint oben ein grüner Hinweis. Tippen genügt. Manuell: Mehr → Info → „Nach Update suchen“.
+- **Sicherung:** Mehr → Einstellungen → „Automatische Sicherung“. Die Sicherungen liegen im Ordner `sicherungen` neben deiner Datenbank-Datei. Die Dropbox-Berechtigungen aus Schritt 2 reichen dafür.
+- **Benachrichtigungen (optional):** Mehr → Einstellungen → „Benachrichtigungen“ einschalten. Dann in der kostenlosen App „ntfy“ den angezeigten Kanal abonnieren. Jede Person hat ihren eigenen Kanal.
+
 ## Hinweise
 
 - Die App funktioniert auch ohne Empfang; Änderungen werden synchronisiert, sobald wieder Verbindung besteht.
-- Es gibt keine Push-Benachrichtigungen. Die Rückmeldung bei der Wochenplanung erscheint als Hinweis oben und als roter Punkt beim Tab „Woche“, sobald die App geöffnet wird (Abgleich alle 20 Sekunden bei geöffneter App).
+- Push-Benachrichtigungen gibt es nur, wenn du sie unter Einstellungen einschaltest (siehe oben). Ohne sie erscheint die Rückmeldung bei der Wochenplanung als Hinweis oben und als roter Punkt beim Tab „Woche“, sobald die App geöffnet wird (Abgleich alle 20 Sekunden bei geöffneter App).
 - Der Versionsverlauf steht in der App unter **Mehr → Info**.
