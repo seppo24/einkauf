@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.3.6';
+const VERSION='1.4.0';
 const CHANGELOG=[
+{v:'1.4.0',d:'27.10.2026',t:['Wochenplanung: Wer die Vorschläge geschickt hat, kann danach noch Rezepte hinzufügen oder abwählen; die andere Person wird per Benachrichtigung und in der App informiert (neu/entfernt)','Wer auswählt, kann vor der Bestätigung weitere Rezepte aus dem Katalog hinzufügen; die prüfende Person sieht in Benachrichtigung und App, welche Rezepte zusätzlich sind','Archiv zeigt zusätzlich gewählte Rezepte']},
 {v:'1.3.6',d:'27.10.2026',t:['Fehler behoben: Im Rezept-Editor ging nach dem Ändern einer Menge der erste Tipp (z. B. auf den Zutatennamen, „Neu anlegen“ oder „Speichern“) verloren','Neuer Artikel: „Neu anlegen“ erscheint jetzt immer, wenn es den Namen nicht ganz genau gibt (auch bei ähnlichen Namen wie „Paprika (orange)“)']},
 {v:'1.3.4',d:'27.10.2026',t:['Fehler behoben: Standardgröße und Umrechnungsfaktor aus der Prüfung wurden nach einem Dropbox-Abgleich nicht immer im Zutatenkatalog gespeichert']},
 {v:'1.3.3',d:'27.10.2026',t:['Wird bei der Prüfung die Standardgröße geändert, werden die Zutaten im Rezept gleich mit umgerechnet (sofern eine Umrechnungsregel vorhanden ist)']},
@@ -183,7 +184,7 @@ DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
 DB.einst=DB.einst||{meatSplit:false,u:0};
 let ME=LS.get('me','');
 let view=LS.get('view','liste');
-const FLT={};let RF=Object.assign({tm:false,schnell:false,min:0,who:'avg'},LS.get('rec_f',{}));let RSELM=false,RSEL=new Set(),FIND=[],RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WF={tm:false,schnell:false,min:0,who:'avg',sel:false},WQ='',WTO='',WPICK=null,WPICKU=0,WTARGET='new';
+const FLT={};let RF=Object.assign({tm:false,schnell:false,min:0,who:'avg'},LS.get('rec_f',{}));let RSELM=false,RSEL=new Set(),FIND=[],RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WEDIT=null,WEDITG=0,WPROP=new Set(),WPICKG=0,WALL=false,WF={tm:false,schnell:false,min:0,who:'avg',sel:false},WQ='',WTO='',WPICK=null,WPICKU=0,WTARGET='new';
 let IDX={},ZKEY=new Map();
 function rebuild(){IDX={};ZKEY=new Map();for(const z of DB.zutaten)IDX[z.id]=z;for(const z of DB.zutaten){if(z.d)continue;ZKEY.set(keyOf(z.name),z);for(const a of z.alias||[]){const k=keyOf(a);if(k&&!ZKEY.has(k))ZKEY.set(k,z)}}}
 const Z=id=>IDX[id];
@@ -419,8 +420,8 @@ function render(){
 function main(){switch(view){case'rezepte':return viewRezepte();case'woche':return viewWoche();case'snacks':return viewSnacks();case'drogerie':return listView('drogerie');case'fav':return viewFav();case'zut':return viewZut();case'set':return viewSet();case'info':return viewInfo();case'archiv':return viewArchiv();default:return listView('markt')}}
 function wdot(){const w=DB.wochenplan;return (w.status==='vorschlag'&&w.an===ME)||(w.status==='pruefung'&&w.von===ME)||(w.status==='fertig'&&(w.bestaetigt?w.an===ME:w.von===ME)&&!w.gesehen)}
 function banner(){if(UPD)return`<div class="ban" data-a="reload">🔄 Update auf Version ${esc(UPD.v)} verfügbar – tippen zum Aktualisieren</div>`;const w=DB.wochenplan;if(view==='woche')return'';
- if(w.status==='vorschlag'&&w.an===ME)return`<div class="ban" data-a="go" data-v="woche">📅 ${esc(w.von)} hat Rezept-Vorschläge geschickt – jetzt auswählen</div>`;
- if(w.status==='pruefung'&&w.von===ME)return`<div class="ban" data-a="go" data-v="woche">🛒 ${esc(w.an)} hat ausgewählt – bitte die Einkaufsliste prüfen und bestätigen</div>`;
+ if(w.status==='vorschlag'&&w.an===ME){const d=wDiff(w);return`<div class="ban" data-a="go" data-v="woche">📅 ${esc(w.von)} hat ${d.add.length||d.rem.length?'die Vorschläge geändert ('+wChgTxt(d)+')':'Rezept-Vorschläge geschickt'} – jetzt auswählen</div>`}
+ if(w.status==='pruefung'&&w.von===ME)return`<div class="ban" data-a="go" data-v="woche">🛒 ${esc(w.an)} hat ausgewählt${(w.extra||[]).length?' ('+(w.extra.length===1?'1 zusätzliches Rezept':w.extra.length+' zusätzliche Rezepte')+')':''} – bitte die Einkaufsliste prüfen und bestätigen</div>`;
  if(w.status==='fertig'&&w.bestaetigt&&w.an===ME&&!w.gesehen)return`<div class="ban" data-a="go" data-v="woche">✅ ${esc(w.von)} hat die Einkaufsliste bestätigt – es kann eingekauft werden</div>`;
  if(w.status==='fertig'&&!w.bestaetigt&&w.von===ME&&!w.gesehen)return`<div class="ban" data-a="go" data-v="woche">✅ ${esc(w.an)} hat ausgewählt – die Wochenliste ist fertig</div>`;
  if(!DBX.ready()&&view==='liste')return`<div class="ban" data-a="go" data-v="set">☁️ Noch nicht mit Dropbox verbunden – Daten liegen nur auf diesem Gerät. Tippen zum Einrichten.</div>`;
@@ -541,7 +542,10 @@ function newZutatDialog(name,typ,cb,defKat){
 
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
-const recCard=(r,set,w)=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div>${set?`<input type="checkbox" class="rchk" data-a="${w==='R'?'rsel':'wtog'}" data-w="${w}" data-id="${r.id}" ${set.has(r.id)?'checked':''} aria-label="Auswählen">`:`<button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button>`}</div>`;
+function wBadge(id,w){const p=DB.wochenplan;if(w!=='B'&&w!=='E')return'';const v=p.vorschlaege||[],o=p.orig;
+ if(w==='B'){if(!v.includes(id))return'<span class="lad" style="margin-left:6px">➕ zusätzlich</span>';if(o&&!o.includes(id))return`<span class="lad" style="margin-left:6px">🆕 von ${esc(p.von)} ergänzt</span>`}
+ return''}
+const recCard=(r,set,w)=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b>${wBadge(r.id,w)}<small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div>${set?`<input type="checkbox" class="rchk" data-a="${w==='R'?'rsel':'wtog'}" data-w="${w}" data-id="${r.id}" ${set.has(r.id)?'checked':''} aria-label="Auswählen">`:`<button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button>`}</div>`;
 function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
  if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
  if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
@@ -817,24 +821,29 @@ A.zdel=(d,b)=>{if(!confirm('Artikel aus dem Katalog löschen? Bestehende Einträ
 
 /* =====================  Wochenplanung  ===================== */
 const others=()=>live(DB.nutzer).map(n=>n.name).filter(n=>n.toLowerCase()!==ME.toLowerCase());
-function wctx(){const w=DB.wochenplan;return w.status==='vorschlag'&&w.an===ME&&WPICK?{ids:w.vorschlaege,set:WPICK,w:'B'}:{ids:null,set:WSEL,w:'A'}}
+function wctx(){const w=DB.wochenplan;if(w.status==='vorschlag'&&w.an===ME&&WPICK)return{ids:WALL?null:[...new Set([...w.vorschlaege,...WPICK])],set:WPICK,w:'B'};if(w.status==='vorschlag'&&w.von===ME&&WEDIT)return{ids:null,set:WEDIT,w:'E'};return{ids:null,set:WSEL,w:'A'}}
+const wDiff=(w,cur)=>{const o=w.orig||[],c=cur||w.vorschlaege||[];return{add:c.filter(x=>!o.includes(x)),rem:o.filter(x=>!c.includes(x))}};
+const wTitles=ids=>ids.map(i=>esc(Rz(i)?.titel||'(gelöscht)')).join(', ');
 function wListHTML(){const c=wctx();return rlist({F:WF,q:WQ,ids:c.ids,set:c.set,w:c.w,ck:'w_closed'})}
 function wRefresh(){const l=$('#wlist');if(l)l.innerHTML=wListHTML();const c=wctx(),sc=$('#wsc');if(sc)sc.textContent=c.set.size;const n=$('#wcnt');if(n)n.textContent=c.set.size}
 const wSearch=()=>`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="wq" value="${esc(WQ)}"></div>${filterBar('w')}<div id="wlist">${wListHTML()}</div>`;
-const wCards=ids=>(ids||[]).map(id=>`<div class="card"><b>${esc(Rz(id)?.titel||'(gelöscht)')}</b></div>`).join('');
+const wCards=ids=>(ids||[]).map(id=>`<div class="card"><b>${esc(Rz(id)?.titel||'(gelöscht)')}</b>${(DB.wochenplan.extra||[]).includes(id)?`<span class="lad" style="margin-left:6px">➕ zusätzlich von ${esc(DB.wochenplan.an)}</span>`:''}</div>`).join('');
 function viewWoche(){
  const w=DB.wochenplan;
  let h=`<div class="bar"><b class="ttl">📅 Wochenplanung</b></div>`;
  if(w.status==='vorschlag'&&w.an===ME){
-  if(WPICKU!==w.u){WPICK=new Set(w.vorschlaege);WPICKU=w.u;WTARGET='new'}
-  h+=`<div class="note"><b>${esc(w.von)}</b> hat dir ${w.vorschlaege.length} Rezepte vorgeschlagen. Was soll es diese Woche geben? Haken = wird gekocht.</div>${wSearch()}
+  if(WPICKU!==w.u){if(WPICKG!==w.gesendet||!WPICK){WPICK=new Set(w.vorschlaege);WPROP=new Set(w.vorschlaege);WTARGET='new';WALL=false}else{for(const id of w.vorschlaege)if(!WPROP.has(id))WPICK.add(id);for(const id of WPROP)if(!w.vorschlaege.includes(id))WPICK.delete(id);WPROP=new Set(w.vorschlaege)}WPICKG=w.gesendet;WPICKU=w.u}
+  const dd=wDiff(w);
+  h+=`<div class="note"><b>${esc(w.von)}</b> hat dir ${w.vorschlaege.length} Rezepte vorgeschlagen. Was soll es diese Woche geben? Haken = wird gekocht. Du kannst auch weitere Rezepte hinzufügen.</div>${dd.add.length||dd.rem.length?`<div class="note" style="background:#fff6dd">ℹ️ <b>${esc(w.von)}</b> hat die Vorschläge geändert.${dd.add.length?`<br>Neu dazu: ${wTitles(dd.add)}`:''}${dd.rem.length?`<br>Entfernt: ${wTitles(dd.rem)}`:''}</div>`:''}<button class="lnk" data-a="wall">${WALL?'Nur Vorschläge anzeigen':'＋ Weitere Rezepte aus dem Katalog hinzufügen'}</button>${wSearch()}
   <label class="lb">Zutaten in welche Liste?</label><select class="srch" data-in="wtarget"><option value="new">Neue Liste „Woche ${new Date().getDate()}.${new Date().getMonth()+1}.“</option>${lists('markt').map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select><button class="btn" data-a="wdone">✅ Auswahl bestätigen (<span id="wcnt">${WPICK.size}</span>) & Einkaufsliste erstellen</button>`;
  }else if(w.status==='vorschlag'&&w.von===ME){
-  h+=`<div class="note">⏳ Warte auf <b>${esc(w.an)}</b> – ${w.vorschlaege.length} Rezepte wurden geschickt:</div>${wCards(w.vorschlaege)}<button class="btn dng" data-a="wcancel">Vorschläge zurückziehen</button>`;
+  if(WEDITG!==w.gesendet||!WEDIT){WEDIT=new Set(w.vorschlaege);WEDITG=w.gesendet}
+  const ch=wDiff(w,[...WEDIT]),cu=wDiff({orig:w.vorschlaege},[...WEDIT]);
+  h+=`<div class="note">⏳ Warte auf <b>${esc(w.an)}</b>. ${w.vorschlaege.length} Rezepte wurden geschickt. Du kannst noch Rezepte hinzufügen oder abwählen (Haken = vorgeschlagen). ${esc(w.an)} wird über Änderungen informiert.</div>${wSearch()}<button class="btn" data-a="wupd">💾 Änderung senden (<span id="wchg">${wChgTxt(cu)}</span>)</button><button class="btn dng" data-a="wcancel">Vorschläge zurückziehen</button>`;
  }else if(w.status==='vorschlag'){
   h+=`<div class="note">Planung läuft: ${esc(w.von)} → ${esc(w.an)}.</div><button class="btn dng" data-a="wcancel">Planung abbrechen</button>`;
  }else if(w.status==='pruefung'){
-  if(w.von===ME)h+=`<div class="note">🛒 <b>${esc(w.an)}</b> hat ${(w.auswahl||[]).length} Rezepte ausgewählt und die Einkaufsliste ist erstellt. Bitte prüfe sie. Wenn alles passt, bestätige sie – dann weiß ${esc(w.an)}, dass das Richtige gekauft wird.</div>${wCards(w.auswahl)}<button class="btn" data-a="wtolist">🛒 Einkaufsliste prüfen</button><button class="btn" data-a="wconfirm">✅ Einkaufsliste ist in Ordnung – bestätigen</button><button class="btn dng" data-a="wcancel">Planung abbrechen</button>`;
+  if(w.von===ME)h+=`<div class="note">🛒 <b>${esc(w.an)}</b> hat ${(w.auswahl||[]).length} Rezepte ausgewählt${(w.extra||[]).length?` (davon ${w.extra.length} zusätzlich zu deinen Vorschlägen: ${wTitles(w.extra)})`:''} und die Einkaufsliste ist erstellt. Bitte prüfe sie. Wenn alles passt, bestätige sie – dann weiß ${esc(w.an)}, dass das Richtige gekauft wird.</div>${wCards(w.auswahl)}<button class="btn" data-a="wtolist">🛒 Einkaufsliste prüfen</button><button class="btn" data-a="wconfirm">✅ Einkaufsliste ist in Ordnung – bestätigen</button><button class="btn dng" data-a="wcancel">Planung abbrechen</button>`;
   else h+=`<div class="note">⏳ Die Einkaufsliste wartet auf die Prüfung durch <b>${esc(w.von)}</b>. Bitte noch nicht einkaufen. Diese Rezepte hast du gewählt:</div>${wCards(w.auswahl)}<button class="btn sec" data-a="wtolist">🛒 Zur Einkaufsliste</button>${w.an===ME?'':`<button class="btn dng" data-a="wcancel">Planung abbrechen</button>`}`;
  }else{
   if(w.status==='fertig'){
@@ -845,14 +854,20 @@ function viewWoche(){
   <button class="btn" data-a="wsend">📨 Vorschläge senden (<span id="wcnt">${WSEL.size}</span>)</button>`}
  h+=`<button class="btn sec" data-a="go" data-v="archiv">📚 Archiv (${live(DB.archiv).length})</button>`;
  return h}
+const wChgTxt=d=>d.add.length||d.rem.length?`+${d.add.length} / −${d.rem.length}`:'keine Änderung';
+A.wall=()=>{WALL=!WALL;render()};
+A.wupd=()=>{const w=DB.wochenplan;if(w.status!=='vorschlag'||w.von!==ME)return toast('Die Planung hat sich inzwischen geändert');
+ const now_=[...WEDIT];if(!now_.length)return toast('Bitte mindestens ein Rezept vorschlagen');const d=wDiff({orig:w.vorschlaege},now_);if(!d.add.length&&!d.rem.length)return toast('Keine Änderung zum Senden');
+ DB.wochenplan={...w,orig:w.orig||w.vorschlaege,vorschlaege:now_,aenderung:now(),u:now()};persist();
+ notify(w.an,'📅 Vorschläge geändert',ME+' hat die Vorschläge geändert ('+wChgTxt(d)+'), bitte prüfen.');toast(w.an+' wird über die Änderung informiert')};
 IN.wq=v=>{WQ=v;wRefresh()};
 IN.wto=v=>{WTO=v};IN.wtarget=v=>{WTARGET=v};
-A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:WPICK;el.checked?s.add(d.id):s.delete(d.id);const n=s.size;for(const x of document.querySelectorAll('#wsc,#wcnt'))x.textContent=n};
+A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:d.w==='E'?WEDIT:WPICK;el.checked?s.add(d.id):s.delete(d.id);const n=s.size;for(const x of document.querySelectorAll('#wsc,#wcnt'))x.textContent=n;const c=$('#wchg');if(c){const w=DB.wochenplan;c.textContent=wChgTxt(wDiff({orig:w.vorschlaege},[...WEDIT]))}};
 A.wsend=()=>{if(!WSEL.size)return toast('Bitte mindestens ein Rezept wählen');const to=WTO.trim();if(!to)return toast('Bitte einen Empfänger angeben');
- DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],gesendet:now(),u:now()};WSEL=new Set();persist();notify(to,'📅 Neue Rezept-Vorschläge',ME+' hat Rezepte vorgeschlagen, bitte daraus welche raussuchen.');toast('Vorschläge an '+to+' gesendet')};
+ DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],orig:[...WSEL],auswahl:[],gesendet:now(),u:now()};WEDIT=null;WSEL=new Set();persist();notify(to,'📅 Neue Rezept-Vorschläge',ME+' hat Rezepte vorgeschlagen, bitte daraus welche raussuchen.');toast('Vorschläge an '+to+' gesendet')};
 function ensureArchive(){const w=DB.wochenplan;if(!w||w.status!=='fertig'||!w.auswahl||!w.auswahl.length)return false;
  const id='a_'+(w.gewaehlt||w.u);if(DB.archiv.some(a=>a.id===id))return false;
- DB.archiv.push({id,von:w.von,an:w.an,gesendet:w.gesendet||null,gewaehlt:w.gewaehlt||w.u,best:w.bestaetigt||null,listeId:w.listeId||'',rez:(w.vorschlaege||[]).map(r=>({id:r,t:Rz(r)?.titel||'(gelöscht)',gew:w.auswahl.includes(r)})),u:now()});return true}
+ DB.archiv.push({id,von:w.von,an:w.an,gesendet:w.gesendet||null,gewaehlt:w.gewaehlt||w.u,best:w.bestaetigt||null,listeId:w.listeId||'',rez:[...new Set([...(w.orig||w.vorschlaege||[]),...(w.vorschlaege||[]),...(w.auswahl||[])])].map(r=>({id:r,t:Rz(r)?.titel||'(gelöscht)',gew:w.auswahl.includes(r),...((w.extra||[]).includes(r)?{extra:1}:{})})),u:now()});return true}
 const fmtDT=t=>t?new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr':'Datum unbekannt';
 function viewArchiv(){
  const es=live(DB.archiv).sort((a,b)=>(b.gewaehlt||0)-(a.gewaehlt||0));
@@ -860,7 +875,7 @@ function viewArchiv(){
  (es.length?es.map(a=>`<div class="card"><div class="ph"><b>${a.gewaehlt?esc(new Date(a.gewaehlt).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'})):'Wochenplanung'}</b><button class="ib" data-a="archdel" data-id="${a.id}">🗑</button></div>
   <small>💡 Vorschläge von <strong>${esc(a.von)}</strong> · ${esc(fmtDT(a.gesendet))}</small>
   <small>✅ Auswahl von <strong>${esc(a.an)}</strong> · ${esc(fmtDT(a.gewaehlt))}</small>${a.best?`<small>🧾 Einkaufsliste bestätigt von <strong>${esc(a.von)}</strong> · ${esc(fmtDT(a.best))}</small>`:''}
-  <div class="cat" style="margin:10px 0 2px">Gewählt</div>${a.rez.filter(r=>r.gew).map(r=>`<div class="srow"><span>✓ ${esc(r.t)}</span></div>`).join('')}
+  <div class="cat" style="margin:10px 0 2px">Gewählt</div>${a.rez.filter(r=>r.gew).map(r=>`<div class="srow"><span>✓ ${esc(r.t)}${r.extra?' ➕ zusätzlich':''}</span></div>`).join('')}
   ${a.rez.some(r=>!r.gew)?`<div class="cat" style="margin:10px 0 2px">Nicht gewählt</div>${a.rez.filter(r=>!r.gew).map(r=>`<div class="srow mu"><span>– ${esc(r.t)}</span></div>`).join('')}`:''}
   ${a.listeId&&lists('markt').some(l=>l.id===a.listeId)?`<button class="btn sec" data-a="archtol" data-id="${a.id}">🛒 Zur Einkaufsliste</button>`:''}</div>`).join(''):`<div class="empty">Noch keine abgeschlossenen Wochenplanungen.<br>Sobald eine Auswahl bestätigt wurde, erscheint sie hier.</div>`)}
 A.archdel=d=>{const a=DB.archiv.find(x=>x.id===d.id);a.d=true;a.u=now();persist();toast('Archiveintrag gelöscht',()=>{a.d=false;a.u=now();persist()})};
@@ -869,7 +884,7 @@ A.wcancel=()=>{DB.wochenplan={id:'wp',status:'leer',u:now()};persist()};
 A.wdone=()=>{const w=DB.wochenplan,sel=[...WPICK];if(!sel.length)return toast('Bitte mindestens ein Rezept wählen');
  let lid;if(WTARGET==='new'||!lists('markt').some(l=>l.id===WTARGET)){const d=new Date();lid=uid();DB.listen.push({id:lid,name:`Woche ${d.getDate()}.${d.getMonth()+1}.`,typ:'markt',u:now()})}else lid=WTARGET;
  for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*recF(r),einheit:x.einheit,src:r.titel,srcId:r.id,rez:1})}
- LS.set('act_markt',lid);DB.wochenplan={...w,status:'pruefung',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,gewaehlt:now(),u:now()};persist();notify(w.von,'🛒 Einkaufsliste kontrollieren',ME+' hat rausgesucht, bitte die Einkaufsliste kontrollieren.');toast('Einkaufsliste erstellt – '+w.von+' prüft sie jetzt')};
+ LS.set('act_markt',lid);const ex=sel.filter(id=>!w.vorschlaege.includes(id));DB.wochenplan={...w,status:'pruefung',auswahl:sel,extra:ex,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,gewaehlt:now(),u:now()};WALL=false;persist();notify(w.von,'🛒 Einkaufsliste kontrollieren',ME+' hat rausgesucht'+(ex.length?' ('+(ex.length===1?'1 zusätzliches Rezept':ex.length+' zusätzliche Rezepte')+')':'')+', bitte die Einkaufsliste kontrollieren.');toast('Einkaufsliste erstellt – '+w.von+' prüft sie jetzt')};
 A.wconfirm=()=>{const w=DB.wochenplan;if(w.status!=='pruefung')return;DB.wochenplan={...w,status:'fertig',bestaetigt:now(),gesehen:false,u:now()};ensureArchive();persist();notify(w.an,'✅ Du kannst einkaufen gehen',ME+' hat die Einkaufsliste kontrolliert, du kannst jetzt einkaufen gehen.');toast('Bestätigt – '+w.an+' wird benachrichtigt')};
 A.wok=()=>{DB.wochenplan={...DB.wochenplan,gesehen:true,status:'leer',u:now()};persist()};
 A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id===id))LS.set('act_markt',id);A.go({v:'liste'})};
