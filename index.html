@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.3.4';
+const VERSION='1.3.6';
 const CHANGELOG=[
+{v:'1.3.6',d:'27.10.2026',t:['Fehler behoben: Im Rezept-Editor ging nach dem Ändern einer Menge der erste Tipp (z. B. auf den Zutatennamen, „Neu anlegen“ oder „Speichern“) verloren','Neuer Artikel: „Neu anlegen“ erscheint jetzt immer, wenn es den Namen nicht ganz genau gibt (auch bei ähnlichen Namen wie „Paprika (orange)“)']},
 {v:'1.3.4',d:'27.10.2026',t:['Fehler behoben: Standardgröße und Umrechnungsfaktor aus der Prüfung wurden nach einem Dropbox-Abgleich nicht immer im Zutatenkatalog gespeichert']},
 {v:'1.3.3',d:'27.10.2026',t:['Wird bei der Prüfung die Standardgröße geändert, werden die Zutaten im Rezept gleich mit umgerechnet (sofern eine Umrechnungsregel vorhanden ist)']},
 {v:'1.3.2',d:'27.10.2026',t:['Standardgröße lässt sich direkt in der Prüfung (bestehende und neue Rezepte) ändern; passt die Einheit danach, ist die Zutat erledigt']},
@@ -405,7 +406,7 @@ document.addEventListener('click',e=>{const t=e.target;
 document.addEventListener('input',e=>{const t=e.target;
  if(t.dataset.ed!==undefined&&ED){if(t.dataset.idx!==undefined){const x=ED.zut[+t.dataset.idx];x[t.dataset.ed]=t.value;if(t.dataset.ed==='einheit'||t.dataset.ed==='menge'){x.cv=undefined;x.skip=0;if(t.dataset.ed==='einheit')drawEditor()}}else ED[t.dataset.ed]=t.value;return}
  if(t.dataset.in&&IN[t.dataset.in])IN[t.dataset.in](t.value,t)});
-document.addEventListener('change',e=>{const t=e.target;if(ED&&t.dataset&&t.dataset.ed==='menge')drawEditor()});
+document.addEventListener('change',e=>{const t=e.target;if(ED&&t.dataset&&t.dataset.ed==='menge'&&t.dataset.idx!==undefined){const h=document.getElementById('sh'+t.dataset.idx);if(h)h.innerHTML=stdHint(ED.zut[+t.dataset.idx],+t.dataset.idx)}});
 A.close=(d,b)=>closeSheet(b.closest('.ov'));
 A.go=d=>{if(d.v==='mehr')return openMore();if(d.v!=='rezepte'){RSELM=false;RSEL=new Set()}$('#sheets').innerHTML='';view=d.v;if(['liste','rezepte','woche','snacks','drogerie'].includes(view))LS.set('view',view);render();scrollTo(0,0)};
 
@@ -525,7 +526,7 @@ function pickZutat(o){
  const typ=o.typ||'markt';
  const el=sheet(o.title||'Zutat wählen',`<input class="srch" placeholder="Suchen oder neu eingeben …" value="${esc(o.q||'')}"><div class="plist"></div>`);
  const inp=el.querySelector('input'),list=el.querySelector('.plist');
- const draw=()=>{const v=inp.value.trim();const res=searchZutaten(v,typ);const exact=v&&findZutat(v);
+ const draw=()=>{const v=inp.value.trim();const res=searchZutaten(v,typ);const exact=v&&ZKEY.get(keyOf(v));
   list.innerHTML=res.map(z=>`<div class="prow" data-id="${z.id}"><span>${esc(z.name)}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}</span><small>${esc(z.kat)}</small></div>`).join('')+(v&&!exact?`<div class="prow new" data-new="1">＋ „${esc(v)}“ neu anlegen</div>`:'')+(!res.length&&!v?'<div class="empty">Noch keine Einträge</div>':'')};
  const done=z=>{o.onPick(z);if(!o.keepOpen)closeSheet(el)};
  inp.oninput=draw;draw();
@@ -535,7 +536,7 @@ function newZutatDialog(name,typ,cb,defKat){
  const cs=catsOf(typ);const dk=cs.includes(defKat)?defKat:(typ==='markt'?'Obst & Gemüse':cs[0]);
  const el=sheet('Neuer Artikel',`<label class="lb">Name</label><input class="srch" name="n" value="${esc(name)}"><label class="lb">Kategorie</label><select class="srch" name="k">${cs.map(k=>`<option ${k===dk?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Üblicher Einkauf in … (optional)</label><input class="srch" name="l" placeholder="Laden, z. B. Rewe"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option>${u}</option>`).join('')}</select><button class="btn">Anlegen</button>`);
  el.querySelector('.btn').onclick=()=>{const f=n=>el.querySelector(`[name=${n}]`).value.trim();const n=f('n');if(!n)return;
-  let z=findZutat(n);if(!z||z.typ!==typ){z={id:uid(),name:n,kat:f('k'),eh:f('e')||'Stück',laden:f('l'),alias:[],typ,u:now()};DB.zutaten.push(z);persist(true)}
+  let z=ZKEY.get(keyOf(n));if(!z||z.typ!==typ){z={id:uid(),name:n,kat:f('k'),eh:f('e')||'Stück',laden:f('l'),alias:[],typ,u:now()};DB.zutaten.push(z);persist(true)}
   closeSheet(el);cb(z)}}
 
 /* =====================  Rezepte  ===================== */
@@ -670,7 +671,7 @@ A.stdno=d=>{ED.zut[+d.idx].skip=1;drawEditor()};
 A.stdask=d=>{const x=ED.zut[+d.idx],z0=Z(x.zid),eh=z0.eh,ein=x.einheit;ask('Wie viele '+ein+' entsprechen 1 '+eh+' „'+z0.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');const z=Z(x.zid);z.umr=[...(z.umr||[]),{a:n,ua:ein,b:1,ub:eh}];z.u=now();persist(true);x.cv=undefined;drawEditor();toast('Umrechnung gespeichert: '+fmtNum(n)+' '+ein+' = 1 '+eh)},'z. B. 150')};
 function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
  el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Mengen gelten für … Portionen (Standard)</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="chk"><input type="checkbox" data-a="edtm" ${s.tm?'checked':''}><span>🥣 Thermomix-Rezept</span></label><label class="chk"><input type="checkbox" data-a="edsn" ${s.schnell?'checked':''}><span>⚡ Schnell (schnell zubereitet)</span></label><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
- ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>${x.orig?`<small class="mu" style="display:block;margin:-2px 0 6px">umgerechnet, Original: ${esc(x.orig)}</small>`:''}${stdHint(x,i)}`).join('')}
+ ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>${x.orig?`<small class="mu" style="display:block;margin:-2px 0 6px">umgerechnet, Original: ${esc(x.orig)}</small>`:''}<div id="sh${i}">${stdHint(x,i)}</div>`).join('')}
  <button class="lnk" data-a="edadd">＋ Zutat hinzufügen</button>
  <label class="lb">Zubereitung (ein Schritt pro Zeile)</label><textarea class="srch" rows="6" data-ed="schritte">${esc(s.schritte)}</textarea><label class="lb">Quelle / Link</label><input class="srch" data-ed="quelle" value="${esc(s.quelle)}">
  <button class="btn" data-a="edsave">Speichern</button>${s.id?`<button class="btn dng" data-a="recdel" data-id="${s.id}">Rezept löschen</button>`:''}`;
