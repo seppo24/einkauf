@@ -83,7 +83,7 @@ textarea.srch{resize:vertical}
 .tt button{background:none;border:0;color:#7CFC9A;font-weight:700}
 .ver{border-left:3px solid var(--ac);padding-left:10px;margin:10px 0}
 .ver ul{margin:4px 0 0;padding-left:18px}
-.rc{display:flex;gap:10px;align-items:center}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
+.rc{display:flex;gap:10px;align-items:center}.rc>div{flex:1;min-width:0}.rplus{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:24px;line-height:1;cursor:pointer}.rplus:active{opacity:.7}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
 .rch{display:flex;justify-content:space-between;cursor:pointer;padding:10px 4px 4px;margin-top:10px;color:var(--tx)}
 .grp{display:block}.gh{display:flex;justify-content:space-between;gap:8px;margin-bottom:2px}.gs{color:var(--ac);font-weight:600;font-size:14px}.prt{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}.prt .nm small{display:inline;margin-left:6px}
 .stars{display:flex;gap:2px}.star{border:0;background:none;font-size:27px;line-height:1;padding:2px 3px;color:var(--bd)}.star.on{color:#f5b301}.star:disabled{opacity:.75}
@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.1.0';
+const VERSION='1.1.1';
 const CHANGELOG=[
+{v:'1.1.1',d:'27.10.2026',t:['Einkaufsliste leeren (Listenmenü ⋮ → „Liste leeren“) mit Sicherheitsabfrage und Rückgängig','Rezeptübersicht: Mit dem ＋ neben jedem Rezept kommen die Zutaten (in der Standard-Portion) direkt auf die Einkaufsliste; das Rezept öffnen und „Zur Einkaufsliste hinzufügen“ geht weiterhin']},
 {v:'1.1.0',d:'27.10.2026',t:['Update-Hinweis: die App meldet selbst, wenn auf GitHub eine neuere Version liegt, und aktualisiert sich per Tipp (auch unter Mehr → Info → Nach Update suchen)','Automatische Sicherung in Dropbox (täglich, wöchentlich oder monatlich, Anzahl einstellbar) mit „Jetzt sichern“ und Wiederherstellen aus einer Sicherung','Doppelte Artikel zusammenführen: pro Artikel oder über „Mögliche Doppelte prüfen“; Rezepte, Listen, Favoriten und Snacks werden angepasst','Vorrat: Artikel als „haben wir normalerweise da“ markieren; aus Rezepten landen sie unter „🏠 Haben wir schon?“ (Brauchen wir / Da)','Einkaufsliste teilen (Teilen-Menü, Kopieren, WhatsApp)','Optionale Handy-Benachrichtigungen bei der Wochenplanung über ntfy.sh (in den Einstellungen ein- und ausschaltbar)']},
  {v:'1.0.10',d:'27.10.2026',t:['Link-Import robuster: sechs Wege zum Laden der Seite gleichzeitig; bei einem Fehler zeigt die App genau, was blockiert war, und bietet „Text einfügen“ oder „Erneut versuchen“ an','Neu: Rezept per Text einfügen (kopierter Rezepttext wird von Claude zum Rezept)']},
  {v:'1.0.9',d:'27.10.2026',t:['Bewertungen: jede Person bewertet Rezepte getrennt mit 1–5 Sternen (Tippen auf den gleichen Stern entfernt die Bewertung); Durchschnitt in der Rezeptübersicht','Neues Flag „⚡ Schnell“ für schnell zubereitete Rezepte (beim Import automatisch erkannt: bis 30 Minuten)','Rezeptliste filterbar nach Thermomix, Schnell und Bewertung (Ø aller, nur eine Person oder von allen, ab 3/4/5 Sternen)']},
@@ -463,7 +464,7 @@ A.clrdone=d=>{const its=live(DB.items).filter(i=>i.lid===d.lid&&i.done);if(!its.
 A.addmanual=d=>{const l=actList(d.typ);pickZutat({typ:d.typ,keepOpen:true,title:'Hinzufügen zu „'+l.name+'“',onPick:z=>{addItem(l.id,{zid:z.id,name:z.name,menge:defQty(z.eh),einheit:z.eh});persist();toast(z.name+' ✓')}})};
 A.newlist=()=>ask('Neue Liste','',n=>{const l={id:uid(),name:n,typ:'markt',u:now()};DB.listen.push(l);LS.set('act_markt',l.id);persist()},'z. B. Wochenmarkt');
 A.listmenu=d=>{const typ=d.typ,l=actList(typ);
- const el=sheet(l.name,`${typ==='markt'?`<button class="opt" data-a="lrename" data-typ="${typ}"><span>✏️</span>Liste umbenennen</button>`:''}<button class="opt" data-a="lreset" data-typ="${typ}"><span>↺</span>Alle Haken entfernen</button><button class="opt" data-a="clrdone2" data-typ="${typ}"><span>🧹</span>Erledigte entfernen</button><button class="opt" data-a="lshare" data-typ="${typ}"><span>📤</span>Liste teilen</button><button class="opt" data-a="katorder" data-typ="${typ}"><span>↕️</span>Reihenfolge der Kategorien</button>${typ==='markt'&&lists(typ).length>1?`<button class="opt" data-a="ldel" data-typ="${typ}"><span>🗑</span>Liste löschen</button>`:''}`)};
+ const el=sheet(l.name,`${typ==='markt'?`<button class="opt" data-a="lrename" data-typ="${typ}"><span>✏️</span>Liste umbenennen</button>`:''}<button class="opt" data-a="lreset" data-typ="${typ}"><span>↺</span>Alle Haken entfernen</button><button class="opt" data-a="clrdone2" data-typ="${typ}"><span>🧹</span>Erledigte entfernen</button><button class="opt" data-a="lshare" data-typ="${typ}"><span>📤</span>Liste teilen</button><button class="opt" data-a="lclear" data-typ="${typ}"><span>🧺</span>Liste leeren</button><button class="opt" data-a="katorder" data-typ="${typ}"><span>↕️</span>Reihenfolge der Kategorien</button>${typ==='markt'&&lists(typ).length>1?`<button class="opt" data-a="ldel" data-typ="${typ}"><span>🗑</span>Liste löschen</button>`:''}`)};
 function shareText(typ){const l=actList(typ);const its=live(DB.items).filter(i=>i.lid===l.id&&!i.done&&!i.vorrat);
  const d=new Date();let t=`🛒 ${l.name} (${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()})\n`;
  const order=catsOf(typ);for(const i of its){const k=ikat(i);if(!order.includes(k))order.push(k)}
@@ -476,6 +477,9 @@ A.shcopy=async(d,b)=>{const t=shText(b);try{await navigator.clipboard.writeText(
 A.shwa=(d,b)=>{window.open('https://wa.me/?text='+encodeURIComponent(shText(b)),'_blank')};
 A.lrename=d=>{const l=actList(d.typ);closeSheet();ask('Liste umbenennen',l.name,n=>{l.name=n;l.u=now();persist()})};
 A.lreset=d=>{const l=actList(d.typ);for(const i of live(DB.items))if(i.lid===l.id&&i.done){i.done=false;i.u=now()}closeSheet();persist()};
+A.lclear=d=>{const l=actList(d.typ);const its=live(DB.items).filter(i=>i.lid===l.id);closeSheet();if(!its.length){toast('Die Liste ist schon leer');return}
+ if(!confirm('Die Liste „'+l.name+'“ wirklich leeren? Alle '+its.length+' Artikel werden entfernt.'))return;
+ const snaps=its.map(i=>({...i}));for(const i of its){i.d=true;i.u=now()}persist();toast(its.length+' Artikel entfernt',()=>{for(const s of snaps){Object.assign(item(s.id),s,{d:false,u:now()})}persist()})};
 A.clrdone2=d=>{const l=actList(d.typ);closeSheet();A.clrdone({lid:l.id})};
 A.ldel=d=>{const l=actList(d.typ);if(!confirm('Liste „'+l.name+'“ mit allen Artikeln löschen?'))return;l.d=true;l.u=now();for(const i of DB.items)if(i.lid===l.id&&!i.d){i.d=true;i.u=now()}LS.set('act_markt','');closeSheet();persist()};
 A.katorder=d=>{closeSheet();const el=sheet('Reihenfolge der Kategorien','');el.dataset.typ=d.typ;drawKat(el)};
@@ -521,7 +525,7 @@ function newZutatDialog(name,typ,cb,defKat){
 
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
-const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div></div>`;
+const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div><button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button></div>`;
 function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
  if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
  if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
@@ -581,9 +585,11 @@ IN.rlid=v=>{if(RD)RD.lid=v};
 A.rpset=(d,b)=>{RD.por=+d.n;drawRec(b.closest('.ov'))};
 A.rstd=(d,b)=>{const r=Rz(RD.id);r.std=RD.por;r.u=now();persist();drawRec(b.closest('.ov'));toast('★ Standard: '+RD.por+' Portionen')};
 A.rpor=(d,b)=>{RD.por=Math.max(1,RD.por+ +d.d);drawRec(b.closest('.ov'))};
-A.rtolist=(d,b)=>{const r=Rz(RD.id),f=RD.por/r.portionen,l=live(DB.listen).find(x=>x.id===RD.lid)||actList('markt');
+function recToList(r,por,lid){const f=por/r.portionen,l=live(DB.listen).find(x=>x.id===lid)||actList('markt');
  for(const x of r.zutaten)addItem(l.id,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*f,einheit:x.einheit,src:r.titel,srcId:r.id,rez:1});
- LS.set('act_markt',l.id);closeSheet(b.closest('.ov'));persist();const nv=live(DB.items).filter(i=>i.lid===l.id&&i.vorrat&&!i.done).length;toast(r.zutaten.length+' Zutaten zu „'+l.name+'“ hinzugefügt'+(nv?' – '+nv+' davon im Vorrat zum Prüfen':''))};
+ LS.set('act_markt',l.id);persist();const nv=live(DB.items).filter(i=>i.lid===l.id&&i.vorrat&&!i.done).length;toast(r.zutaten.length+' Zutaten zu „'+l.name+'“ hinzugefügt'+(nv?' – '+nv+' davon im Vorrat zum Prüfen':''))}
+A.rtolist=(d,b)=>{const r=Rz(RD.id);closeSheet(b.closest('.ov'));recToList(r,RD.por,RD.lid)};
+A.rquick=d=>{const r=Rz(d.id);if(!r||!r.zutaten.length){toast('Dieses Rezept hat keine Zutaten');return}recToList(r,recStd(r),actList('markt').id)};
 A.redit=(d,b)=>{const r=Rz(RD.id);closeSheet(b.closest('.ov'));openEditor(r)};
 A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id);r.d=true;r.u=now();closeSheet(b.closest('.ov'));persist()};
 
