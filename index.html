@@ -85,6 +85,7 @@ textarea.srch{resize:vertical}
 .ver ul{margin:4px 0 0;padding-left:18px}
 .rc{display:flex;gap:10px;align-items:center}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
 .rch{display:flex;justify-content:space-between;cursor:pointer;padding:10px 4px 4px;margin-top:10px;color:var(--tx)}
+.grp{display:block}.gh{display:flex;justify-content:space-between;gap:8px;margin-bottom:2px}.gs{color:var(--ac);font-weight:600;font-size:14px}.prt{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}.prt .nm small{display:inline;margin-left:6px}
 .seg{display:flex;gap:0;margin-bottom:8px}.seg button{flex:1;border:1px solid var(--bd);background:var(--card);padding:9px}
 .seg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 </style>
@@ -96,9 +97,11 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.0.5';
+const VERSION='1.0.7';
 const CHANGELOG=[
-{v:'1.0.5',d:'26.10.2026',t:['Rezeptbilder deutlich schärfer (höhere Auflösung, beim Link-Import wird das größte verfügbare Bild gewählt)','Rezepte in Kategorien (Frühstück, Suppen, Salate, Pasta, Fleisch & Fisch, Vegetarisch, Beilagen, Backen, Sonstiges), ein- und ausklappbar; Kategorie wird automatisch vorgeschlagen und lässt sich im Rezept ändern']},
+{v:'1.0.7',d:'27.10.2026',t:['Archiv: abgeschlossene Wochenplanungen werden automatisch gespeichert (wer die Vorschläge gemacht hat, wer ausgewählt hat, jeweils mit Datum und Uhrzeit, gewählte und nicht gewählte Rezepte); Einträge lassen sich löschen (mit Rückgängig). Zu finden unter Woche → Archiv und im Menü Mehr']},
+ {v:'1.0.6',d:'27.10.2026',t:['Rezepte skalierbar: Portionen 1–6 (oder beliebig per +/−) zum Hochrechnen, eine Standardportion lässt sich festlegen (★); Mengen im Editor gelten für die Standardportion und werden ab dann daraus skaliert','Snacks der Freunde: Namen einklappbar (Alle auf / Alle zu)','Einstellung: Fleisch & Fisch nicht zusammenrechnen – Posten je Rezept, z. B. „600 g + 400 g“, einzeln abhakbar']},
+ {v:'1.0.5',d:'26.10.2026',t:['Rezeptbilder deutlich schärfer (höhere Auflösung, beim Link-Import wird das größte verfügbare Bild gewählt)','Rezepte in Kategorien (Frühstück, Suppen, Salate, Pasta, Fleisch & Fisch, Vegetarisch, Beilagen, Backen, Sonstiges), ein- und ausklappbar; Kategorie wird automatisch vorgeschlagen und lässt sich im Rezept ändern']},
  {v:'1.0.4',d:'26.10.2026',t:['Snacks: Import einer Textliste („Name: Snack, Snack“) mit Vorschau – die Daten werden nur in die eigene Dropbox-Datenbank geschrieben, nicht in den App-Code']},
  {v:'1.0.3',d:'26.10.2026',t:['Rezepte können ein Bild vom Essen haben (Foto, Galerie oder automatisch beim Link-Import); Anzeige in der Rezeptliste und im Rezept; Bilder werden über Dropbox synchronisiert']},
  {v:'1.0.2',d:'26.10.2026',t:['Fehler behoben: Rezept-Import per Foto und Link (Fehlermeldung „reading map“)']},
@@ -160,9 +163,10 @@ function freshDB(){
 
 /* =====================  Zustand  ===================== */
 let DB=LS.get('einkauf_db',null)||freshDB();
-for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer'])DB[k]=DB[k]||[];
+for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv'])DB[k]=DB[k]||[];
 DB.wochenplan=DB.wochenplan||{id:'wp',status:'leer',u:0};
 DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
+DB.einst=DB.einst||{meatSplit:false,u:0};
 let ME=LS.get('me','');
 let view=LS.get('view','liste');
 const FLT={};let RQ='',ZQ='',FAVT='markt',RD=null,ED=null,WSEL=new Set(),WTO='',WPICK=null,WPICKU=0,WTARGET='new';
@@ -171,6 +175,8 @@ function rebuild(){IDX={};ZKEY=new Map();for(const z of DB.zutaten)IDX[z.id]=z;f
 const Z=id=>IDX[id];
 const item=id=>DB.items.find(i=>i.id===id);
 const Rz=id=>DB.rezepte.find(r=>r.id===id);
+const recStd=r=>r.std||r.portionen;
+const recF=r=>recStd(r)/r.portionen;
 
 /* ---- Namens-Normalisierung: "Paprika, gelb" == "gelbe Paprika" ---- */
 const stem=w=>{w=w.toLowerCase();for(const e of ['en','er','es','e','n','s']){if(w.length>e.length+2&&w.endsWith(e))return w.slice(0,-e.length)}return w};
@@ -205,10 +211,12 @@ const iname=i=>i.name+(i.fuer?` (${i.fuer})`:'');
 
 function addItem(lid,e){
  const unit=fam(e.einheit||'');const m=(e.menge==null||e.menge==='')?null:toBase(+e.menge,e.einheit||'');
- const ex=DB.items.find(i=>!i.d&&i.lid===lid&&!i.done&&(e.zid?i.zid===e.zid:(!i.zid&&keyOf(i.name)===keyOf(e.name)))&&(i.fuer||'')===(e.fuer||'')&&((i.einheit||'')===unit||i.menge==null||m==null));
- if(ex){if(m!=null){if(ex.menge==null){ex.menge=m;ex.einheit=unit}else ex.menge+=m}ex.u=now();return ex}
  const z=e.zid?Z(e.zid):null;
+ const split=!!(DB.einst&&DB.einst.meatSplit&&z&&z.kat==='Fleisch & Fisch');const sk=e.srcId||'';
+ const ex=DB.items.find(i=>!i.d&&i.lid===lid&&!i.done&&(e.zid?i.zid===e.zid:(!i.zid&&keyOf(i.name)===keyOf(e.name)))&&(i.fuer||'')===(e.fuer||'')&&((i.einheit||'')===unit||i.menge==null||m==null)&&(!split||(!!i.sep&&(i.srcId||'')===sk)));
+ if(ex){if(m!=null){if(ex.menge==null){ex.menge=m;ex.einheit=unit}else ex.menge+=m}ex.u=now();return ex}
  const it={id:uid(),lid,zid:e.zid||null,name:z?z.name:e.name,menge:m,einheit:unit,fuer:e.fuer||'',done:false,u:now()};
+ if(split){it.sep=1;it.src=e.src||'';it.srcId=sk}
  DB.items.push(it);return it}
 
 /* =====================  Merge & Sync  ===================== */
@@ -216,9 +224,9 @@ function mergeArr(a=[],b=[],f){const la=new Map(a.map(x=>[x.id,x])),m=new Map();
  for(const y of b){const x=la.get(y.id);if(!x){m.set(y.id,y);f.down=1}else if((x.u||0)>(y.u||0)){m.set(y.id,x);f.up=1}else{m.set(y.id,y);if((x.u||0)<(y.u||0))f.down=1}}
  for(const x of a)if(!m.has(x.id)){m.set(x.id,x);f.up=1}
  return [...m.values()]}
-const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer'];
+const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv'];
 function mergeDB(l,r){const f={up:0,down:0};const o={...r};for(const k of ARR)o[k]=mergeArr(l[k],r[k],f);
- for(const k of ['wochenplan','katOrder']){const a=l[k],b=r[k];if(!b){o[k]=a;f.up=1}else if(!a){o[k]=b;f.down=1}else if((a.u||0)>(b.u||0)){o[k]=a;f.up=1}else{o[k]=b;if((a.u||0)<(b.u||0))f.down=1}}
+ for(const k of ['wochenplan','katOrder','einst']){const a=l[k],b=r[k];if(!b){o[k]=a;f.up=1}else if(!a){o[k]=b;f.down=1}else if((a.u||0)>(b.u||0)){o[k]=a;f.up=1}else{o[k]=b;if((a.u||0)<(b.u||0))f.down=1}}
  return {db:o,up:f.up,down:f.down}}
 function purge(db){const cut=now()-30*864e5;const o={...db};for(const k of ARR)o[k]=db[k].filter(x=>!(x.d&&(x.u||0)<cut));return o}
 
@@ -330,10 +338,10 @@ A.go=d=>{if(d.v==='mehr')return openMore();$('#sheets').innerHTML='';view=d.v;if
 function render(){
  const y=scrollY;
  const nav=[['liste','🛒','Einkauf'],['rezepte','📖','Rezepte'],['woche','📅','Woche'],['snacks','🍿','Snacks'],['drogerie','🧴','Drogerie'],['mehr','☰','Mehr']];
- const more=['fav','zut','set','info'].includes(view);
+ const more=['fav','zut','set','info','archiv'].includes(view);
  $('#app').innerHTML=`<header><span>🛒 Einkauf</span><span class="hr"><span>${esc(ME)}</span><button id="sdot" class="dot ${SS}" data-a="syncnow" title="${esc(SERR)}"></button></span></header>${banner()}<main>${main()}</main><nav>${nav.map(([v,i,l])=>`<button data-a="go" data-v="${v}" class="${view===v||(v==='mehr'&&more)?'on':''}"><span>${i}</span>${l}${v==='woche'&&wdot()?'<i class="bdg"></i>':''}</button>`).join('')}</nav>`;
  scrollTo(0,y)}
-function main(){switch(view){case'rezepte':return viewRezepte();case'woche':return viewWoche();case'snacks':return viewSnacks();case'drogerie':return listView('drogerie');case'fav':return viewFav();case'zut':return viewZut();case'set':return viewSet();case'info':return viewInfo();default:return listView('markt')}}
+function main(){switch(view){case'rezepte':return viewRezepte();case'woche':return viewWoche();case'snacks':return viewSnacks();case'drogerie':return listView('drogerie');case'fav':return viewFav();case'zut':return viewZut();case'set':return viewSet();case'info':return viewInfo();case'archiv':return viewArchiv();default:return listView('markt')}}
 function wdot(){const w=DB.wochenplan;return (w.status==='vorschlag'&&w.an===ME)||(w.status==='fertig'&&w.von===ME&&!w.gesehen)}
 function banner(){const w=DB.wochenplan;if(view==='woche')return'';
  if(w.status==='vorschlag'&&w.an===ME)return`<div class="ban" data-a="go" data-v="woche">📅 ${esc(w.von)} hat Rezept-Vorschläge geschickt – jetzt auswählen</div>`;
@@ -349,14 +357,23 @@ function askName(first){
   closeSheet(el);persist()};
  el.querySelector('.btn').onclick=go;i.onkeydown=e=>{if(e.key==='Enter')go()};setTimeout(()=>i.focus(),80)}
 function openMore(){
- const rows=[['fav','⭐','Favoriten'],['zut','🥕','Zutaten & Artikel verwalten'],['set','⚙️','Einstellungen (Dropbox, Claude)'],['info','ℹ️','Info & Versionsverlauf']];
+ const rows=[['archiv','📚','Archiv der Wochenplanungen'],['fav','⭐','Favoriten'],['zut','🥕','Zutaten & Artikel verwalten'],['set','⚙️','Einstellungen (Dropbox, Claude)'],['info','ℹ️','Info & Versionsverlauf']];
  const el=sheet('Menü',rows.map(([v,i,l])=>`<button class="opt" data-a="go" data-v="${v}"><span>${i}</span>${l}</button>`).join('')+`<button class="opt" data-a="other"><span>👤</span>Anderer Nutzer (angemeldet als ${esc(ME)})</button>`)}
 A.other=()=>{$('#sheets').innerHTML='';askName(false)};
 
 /* =====================  Einkaufsliste / Drogerie  ===================== */
+function qtyCtl(i){return i.done?'':(i.menge==null?`<button data-a="inc" data-id="${i.id}">＋</button>`:`<button data-a="dec" data-id="${i.id}">${i.menge<=stepOf(i.menge,i.einheit)?'🗑':'−'}</button><span>${esc(fmtQty(i.menge,i.einheit))}</span><button data-a="inc" data-id="${i.id}">＋</button>`)}
+function groupHTML(g){const lad=iladen(g[0]);
+ return`<div class="it grp"><div class="gh"><div class="nm" data-a="editit" data-id="${g[0].id}">${esc(iname(g[0]))}${lad?`<br><span class="lad"><small style="display:inline;color:inherit">📍 ${esc(lad)}</small></span>`:''}</div><div class="gs">${g.map(i=>esc(fmtQty(i.menge,i.einheit)||'?')).join(' + ')}</div></div>${g.map(i=>`<div class="prt"><div class="cb" data-a="tog" data-id="${i.id}">✓</div><div class="nm" data-a="editit" data-id="${i.id}">${esc(fmtQty(i.menge,i.einheit)||'ohne Menge')}${i.src?`<small>${esc(i.src)}</small>`:''}</div><div class="qty">${qtyCtl(i)}</div></div>`).join('')}</div>`}
+function rowsFor(its){const gk=i=>i.zid?i.lid+'|'+i.zid+'|'+(i.fuer||''):null;const m=new Map();
+ for(const i of its){const k=gk(i);if(k){if(!m.has(k))m.set(k,[]);m.get(k).push(i)}}
+ const seen=new Set(),out=[];
+ for(const i of its){const k=gk(i),g=k&&m.get(k);
+  if(g&&g.length>1&&g.some(x=>x.sep)){if(!seen.has(k)){seen.add(k);out.push(groupHTML(g))}}else out.push(rowHTML(i))}
+ return out.join('')}
 function rowHTML(i){
  const lad=iladen(i);
- const q=i.done?'':(i.menge==null?`<button data-a="inc" data-id="${i.id}">＋</button>`:`<button data-a="dec" data-id="${i.id}">${i.menge<=stepOf(i.menge,i.einheit)?'🗑':'−'}</button><span>${esc(fmtQty(i.menge,i.einheit))}</span><button data-a="inc" data-id="${i.id}">＋</button>`);
+ const q=qtyCtl(i);
  return`<div class="it ${i.done?'done':''}"><div class="cb" data-a="tog" data-id="${i.id}">✓</div><div class="nm" data-a="editit" data-id="${i.id}">${esc(iname(i))}${i.done&&i.menge!=null?` <small style="display:inline">${esc(fmtQty(i.menge,i.einheit))}</small>`:''}${lad?`<br><span class="lad"><small style="display:inline;color:inherit">📍 ${esc(lad)}</small></span>`:''}</div><div class="qty">${q}</div></div>`}
 function listView(typ){
  const l=actList(typ);const items=live(DB.items).filter(i=>i.lid===l.id);const flt=FLT[typ]||'';
@@ -367,7 +384,7 @@ function listView(typ){
  let h=`<div class="bar">${typ==='markt'?`<select data-in="actlist">${lists(typ).map(x=>`<option value="${x.id}" ${x.id===l.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="ib" data-a="newlist">＋</button>`:`<b class="ttl">🧴 ${esc(l.name)}</b>`}<button class="ib" data-a="listmenu" data-typ="${typ}">⋯</button></div>`;
  h+=`<button class="addbar" data-a="addmanual" data-typ="${typ}">＋ Artikel hinzufügen …</button>`;
  if(laeden.length)h+=`<div class="chips"><button class="chip ${flt?'':'on'}" data-a="flt" data-typ="${typ}" data-v="">Alle</button>${laeden.map(x=>`<button class="chip ${flt===x?'on':''}" data-a="flt" data-typ="${typ}" data-v="${esc(x)}">📍 ${esc(x)}</button>`).join('')}</div>`;
- for(const k of order){const its=open.filter(i=>ikat(i)===k);if(its.length)h+=`<div class="cat">${esc(k)}</div>`+its.sort(byName).map(rowHTML).join('')}
+ for(const k of order){const its=open.filter(i=>ikat(i)===k);if(its.length)h+=`<div class="cat">${esc(k)}</div>`+rowsFor(its.sort(byName))}
  if(!open.length&&!done.length)h+=`<div class="empty">Die Liste ist leer.<br>Füge Artikel hinzu${typ==='markt'?', nimm Rezepte, Favoriten oder die Wochenplanung':''}.</div>`;
  if(done.length)h+=`<div class="cat">Erledigt (${done.length})</div>`+done.sort(byName).map(rowHTML).join('')+`<button class="lnk" data-a="clrdone" data-lid="${l.id}">Erledigte entfernen</button>`;
  return h}
@@ -428,7 +445,7 @@ function newZutatDialog(name,typ,cb,defKat){
 
 /* =====================  Rezepte  ===================== */
 const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join(' ')).toLowerCase();
-const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${r.portionen} Portionen</small></div></div>`;
+const recCard=r=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b><small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen</small></div></div>`;
 function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
  if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
  if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
@@ -453,18 +470,20 @@ A.recphoto=d=>{closeSheet();const i=document.createElement('input');i.type='file
 A.reclink=()=>{closeSheet();ask('Rezept-Link','',u=>importFlow(()=>importLink(u)),'https://…')};
 async function importFlow(fn){const done=busy('Rezept wird gelesen …');try{const r=await fn();done();openEditor(r)}catch(e){done();toast(e.message||String(e))}}
 
-A.openrec=d=>{const r=Rz(d.id);RD={id:r.id,por:r.portionen,lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
+A.openrec=d=>{const r=Rz(d.id);RD={id:r.id,por:recStd(r),lid:actList('markt').id};const el=sheet(r.titel,'');drawRec(el)};
 function drawRec(el){const r=Rz(RD.id);const f=RD.por/r.portionen;
- el.querySelector('.shb').innerHTML=`${IMGC[r.id]?`<img class="hero" alt="" src="${IMGC[r.id]}">`:''}<div class="row" style="justify-content:space-between"><span>Portionen</span><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span></div>
+ el.querySelector('.shb').innerHTML=`${IMGC[r.id]?`<img class="hero" alt="" src="${IMGC[r.id]}">`:''}<div class="cat" style="margin-top:2px">Portionen</div><div class="chips">${[1,2,3,4,5,6].map(n=>`<button class="chip ${RD.por===n?'on':''}" data-a="rpset" data-n="${n}">${n}${recStd(r)===n?' ★':''}</button>`).join('')}</div><div class="row" style="justify-content:space-between"><span class="qty"><button data-a="rpor" data-d="-1">−</button><span>${RD.por}</span><button data-a="rpor" data-d="1">＋</button></span>${RD.por===recStd(r)?'<span class="mu">★ Standard</span>':`<button class="lnk" data-a="rstd">★ ${RD.por} als Standard festlegen</button>`}</div>
  <div class="cat">Zutaten</div>${r.zutaten.map(x=>{const z=Z(x.zid);return`<div class="srow"><span>${esc(z?z.name:x.n||'?')}</span><span>${x.menge==null?'':esc(fmtQty(toBase(x.menge*f,x.einheit),fam(x.einheit)))}</span></div>`}).join('')}
  ${r.schritte?`<div class="cat">Zubereitung</div><ol style="padding-left:20px;margin:6px 0">${r.schritte.split(/\n+/).filter(s=>s.trim()).map(s=>`<li style="margin-bottom:6px">${esc(s)}</li>`).join('')}</ol>`:''}
  ${r.quelle?`<p class="mu">Quelle: ${/^https?:\/\//.test(r.quelle)?`<a href="${esc(r.quelle)}" target="_blank" rel="noopener">${esc(r.quelle)}</a>`:esc(r.quelle)}</p>`:''}
  <label class="lb">Zur Liste</label><select class="srch" data-in="rlid">${lists('markt').map(l=>`<option value="${l.id}" ${l.id===RD.lid?'selected':''}>${esc(l.name)}</option>`).join('')}</select>
  <button class="btn" data-a="rtolist">🛒 Zur Einkaufsliste hinzufügen</button><button class="btn sec" data-a="redit">✏️ Rezept anpassen</button>`}
 IN.rlid=v=>{if(RD)RD.lid=v};
+A.rpset=(d,b)=>{RD.por=+d.n;drawRec(b.closest('.ov'))};
+A.rstd=(d,b)=>{const r=Rz(RD.id);r.std=RD.por;r.u=now();persist();drawRec(b.closest('.ov'));toast('★ Standard: '+RD.por+' Portionen')};
 A.rpor=(d,b)=>{RD.por=Math.max(1,RD.por+ +d.d);drawRec(b.closest('.ov'))};
 A.rtolist=(d,b)=>{const r=Rz(RD.id),f=RD.por/r.portionen,l=live(DB.listen).find(x=>x.id===RD.lid)||actList('markt');
- for(const x of r.zutaten)addItem(l.id,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*f,einheit:x.einheit});
+ for(const x of r.zutaten)addItem(l.id,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*f,einheit:x.einheit,src:r.titel,srcId:r.id});
  LS.set('act_markt',l.id);closeSheet(b.closest('.ov'));persist();toast(r.zutaten.length+' Zutaten zu „'+l.name+'“ hinzugefügt')};
 A.redit=(d,b)=>{const r=Rz(RD.id);closeSheet(b.closest('.ov'));openEditor(r)};
 A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id);r.d=true;r.u=now();closeSheet(b.closest('.ov'));persist()};
@@ -472,13 +491,13 @@ A.recdel=(d,b)=>{if(!confirm('Rezept wirklich löschen?'))return;const r=Rz(d.id
 /* ---- Rezept-Editor ---- */
 function openEditor(r){
  if(r&&r.zut)r={titel:r.titel||'',portionen:r.portionen||4,schritte:r.schritte||'',quelle:r.quelle||'',zutaten:[],_zut:r.zut,_img:r.img,kat:r.kat};
- ED=r?{id:r.id,titel:r.titel,portionen:r.portionen,schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
+ ED=r?{id:r.id,titel:r.titel,portionen:r._zut?r.portionen:recStd(r),schritte:r.schritte||'',quelle:r.quelle||'',zut:r._zut?r._zut:r.zutaten.map(x=>({zid:x.zid,name:Z(x.zid)?.name||x.n||'',menge:x.menge==null?'':fmtNum(x.menge*recF(r)),einheit:x.einheit||''}))}:{titel:'',portionen:4,schritte:'',quelle:'',zut:[{}]};
  if(!ED.zut.length)ED.zut=[{}];
  ED.img=(r&&(r._img||(r.id&&IMGC[r.id])))||null;ED.bild=(r&&r.bild)||0;ED.imgChanged=!!(r&&r._img);ED.kat=(r&&r.kat)||'';
  if(r&&!r.id)delete ED.id;
  ED.el=sheet(ED.id?'Rezept anpassen':'Neues Rezept','');drawEditor()}
 function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
- el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Portionen</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
+ el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Mengen gelten für … Portionen (Standard)</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
  ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>`).join('')}
  <button class="lnk" data-a="edadd">＋ Zutat hinzufügen</button>
  <label class="lb">Zubereitung (ein Schritt pro Zeile)</label><textarea class="srch" rows="6" data-ed="schritte">${esc(s.schritte)}</textarea><label class="lb">Quelle / Link</label><input class="srch" data-ed="quelle" value="${esc(s.quelle)}">
@@ -496,7 +515,7 @@ A.edsave=()=>{
   if(z)zut.push({zid:z.id,n:z.name,menge:parseNum(x.menge),einheit:x.einheit||''})}
  const id=s.id||uid();let bild=s.bild||0;
  if(s.imgChanged){if(s.img){bild=now();IMGC[id]=s.img;IMGM[id]={v:bild,data:s.img,up:true};IMG.set(id,IMGM[id])}else{bild=0;delete IMGC[id];delete IMGM[id];IMG.del(id)}}
- const r={id,titel:String(s.titel).trim(),portionen:Math.max(1,parseInt(s.portionen)||4),zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,kat:s.kat||guessRecKat(String(s.titel),zut.map(x=>Z(x.zid)?.name||'')),u:now()};
+ const por=Math.max(1,parseInt(s.portionen)||4);const r={id,titel:String(s.titel).trim(),portionen:por,std:por,zutaten:zut,schritte:s.schritte||'',quelle:s.quelle||'',bild,kat:s.kat||guessRecKat(String(s.titel),zut.map(x=>Z(x.zid)?.name||'')),u:now()};
  const i=DB.rezepte.findIndex(x=>x.id===r.id);if(i>=0)DB.rezepte[i]=r;else DB.rezepte.push(r);
  closeSheet(s.el);ED=null;persist();toast('Rezept gespeichert')};
 
@@ -601,25 +620,44 @@ function viewWoche(){
   h+=`<p class="mu">Wähle Rezepte, die zur Wahl stehen, und schicke sie als Vorschlag an die andere Person.</p>${rs.length?recChecks(rs.map(r=>r.id),WSEL,'A'):'<div class="empty">Lege zuerst Rezepte an.</div>'}
   <label class="lb">Vorschläge senden an</label><input class="srch" list="nl" data-in="wto" value="${esc(WTO)}" placeholder="Name"><datalist id="nl">${o.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>${o.length?'':'<p class="mu">Die andere Person erscheint hier, sobald sie die App mit ihrem Namen geöffnet hat.</p>'}
   <button class="btn" data-a="wsend">📨 Vorschläge senden</button>`}
+ h+=`<button class="btn sec" data-a="go" data-v="archiv">📚 Archiv (${live(DB.archiv).length})</button>`;
  return h}
 IN.wto=v=>{WTO=v};IN.wtarget=v=>{WTARGET=v};
 A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:WPICK;el.checked?s.add(d.id):s.delete(d.id)};
 A.wsend=()=>{if(!WSEL.size)return toast('Bitte mindestens ein Rezept wählen');const to=WTO.trim();if(!to)return toast('Bitte einen Empfänger angeben');
- DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],u:now()};WSEL=new Set();persist();toast('Vorschläge an '+to+' gesendet')};
+ DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],gesendet:now(),u:now()};WSEL=new Set();persist();toast('Vorschläge an '+to+' gesendet')};
+function ensureArchive(){const w=DB.wochenplan;if(!w||w.status!=='fertig'||!w.auswahl||!w.auswahl.length)return false;
+ const id='a_'+w.u;if(DB.archiv.some(a=>a.id===id))return false;
+ DB.archiv.push({id,von:w.von,an:w.an,gesendet:w.gesendet||null,gewaehlt:w.u,listeId:w.listeId||'',rez:(w.vorschlaege||[]).map(r=>({id:r,t:Rz(r)?.titel||'(gelöscht)',gew:w.auswahl.includes(r)})),u:now()});return true}
+const fmtDT=t=>t?new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr':'Datum unbekannt';
+function viewArchiv(){
+ const es=live(DB.archiv).sort((a,b)=>(b.gewaehlt||0)-(a.gewaehlt||0));
+ return`<div class="bar"><button class="ib" data-a="go" data-v="woche">←</button><b class="ttl">📚 Archiv der Wochenplanungen</b></div>`+
+ (es.length?es.map(a=>`<div class="card"><div class="ph"><b>${a.gewaehlt?esc(new Date(a.gewaehlt).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'})):'Wochenplanung'}</b><button class="ib" data-a="archdel" data-id="${a.id}">🗑</button></div>
+  <small>💡 Vorschläge von <strong>${esc(a.von)}</strong> · ${esc(fmtDT(a.gesendet))}</small>
+  <small>✅ Auswahl von <strong>${esc(a.an)}</strong> · ${esc(fmtDT(a.gewaehlt))}</small>
+  <div class="cat" style="margin:10px 0 2px">Gewählt</div>${a.rez.filter(r=>r.gew).map(r=>`<div class="srow"><span>✓ ${esc(r.t)}</span></div>`).join('')}
+  ${a.rez.some(r=>!r.gew)?`<div class="cat" style="margin:10px 0 2px">Nicht gewählt</div>${a.rez.filter(r=>!r.gew).map(r=>`<div class="srow mu"><span>– ${esc(r.t)}</span></div>`).join('')}`:''}
+  ${a.listeId&&lists('markt').some(l=>l.id===a.listeId)?`<button class="btn sec" data-a="archtol" data-id="${a.id}">🛒 Zur Einkaufsliste</button>`:''}</div>`).join(''):`<div class="empty">Noch keine abgeschlossenen Wochenplanungen.<br>Sobald eine Auswahl bestätigt wurde, erscheint sie hier.</div>`)}
+A.archdel=d=>{const a=DB.archiv.find(x=>x.id===d.id);a.d=true;a.u=now();persist();toast('Archiveintrag gelöscht',()=>{a.d=false;a.u=now();persist()})};
+A.archtol=d=>{const a=DB.archiv.find(x=>x.id===d.id);LS.set('act_markt',a.listeId);A.go({v:'liste'})};
 A.wcancel=()=>{DB.wochenplan={id:'wp',status:'leer',u:now()};persist()};
 A.wdone=()=>{const w=DB.wochenplan,sel=[...WPICK];if(!sel.length)return toast('Bitte mindestens ein Rezept wählen');
  let lid;if(WTARGET==='new'||!lists('markt').some(l=>l.id===WTARGET)){const d=new Date();lid=uid();DB.listen.push({id:lid,name:`Woche ${d.getDate()}.${d.getMonth()+1}.`,typ:'markt',u:now()})}else lid=WTARGET;
- for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge,einheit:x.einheit})}
- LS.set('act_markt',lid);DB.wochenplan={...w,status:'fertig',auswahl:sel,listeId:lid,gesehen:false,u:now()};persist();toast('Einkaufsliste erstellt – '+w.von+' wird benachrichtigt')};
+ for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*recF(r),einheit:x.einheit,src:r.titel,srcId:r.id})}
+ LS.set('act_markt',lid);DB.wochenplan={...w,status:'fertig',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,u:now()};ensureArchive();persist();toast('Einkaufsliste erstellt – '+w.von+' wird benachrichtigt')};
 A.wok=()=>{DB.wochenplan={...DB.wochenplan,gesehen:true,status:'leer',u:now()};persist()};
 A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id===id))LS.set('act_markt',id);A.go({v:'liste'})};
 
 /* =====================  Snacks  ===================== */
 function viewSnacks(){
  const by={};for(const s of live(DB.snacks))(by[s.person]=by[s.person]||[]).push(s);
- const ps=Object.keys(by).sort((a,b)=>a.localeCompare(b,'de'));
- return`<div class="bar"><b class="ttl">🍿 Snacks der Freunde</b><button class="ib" data-a="snimp">📥 Import</button><button class="ib" data-a="newperson">＋ Person</button></div>`+
- (ps.length?ps.map(p=>`<div class="card"><div class="ph"><b>${esc(p)}</b><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button></span></div>${by[p].sort(byName).map(s=>`<div class="srow"><span>${esc(Z(s.zid)?.name||s.name)}</span><span><button class="ib" data-a="snacktol" data-id="${s.id}">🛒</button> <button class="ib" data-a="snackdel" data-id="${s.id}">✕</button></span></div>`).join('')}</div>`).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“ und trage ein, was deine Freunde gern naschen.<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
+ const ps=Object.keys(by).sort((a,b)=>a.localeCompare(b,'de'));const op=LS.get('snack_open',{});
+ return`<div class="bar"><b class="ttl">🍿 Snacks</b>${ps.length?`<button class="ib" data-a="snall">${ps.some(p=>!op[p])?'Alle auf':'Alle zu'}</button>`:''}<button class="ib" data-a="snimp">📥</button><button class="ib" data-a="newperson">＋ Person</button></div>`+
+ (ps.length?ps.map(p=>{const o=!!op[p];return`<div class="card"><div class="ph" style="margin-bottom:${o?6:0}px"><span style="flex:1;cursor:pointer;padding:4px 0" data-a="sntog" data-p="${esc(p)}"><b>${o?'▾':'▸'} ${esc(p)}</b> <small style="display:inline">${by[p].length}</small></span><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button></span></div>${o?by[p].sort(byName).map(s=>`<div class="srow"><span>${esc(Z(s.zid)?.name||s.name)}</span><span><button class="ib" data-a="snacktol" data-id="${s.id}">🛒</button> <button class="ib" data-a="snackdel" data-id="${s.id}">✕</button></span></div>`).join(''):''}</div>`}).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“ oder importiere eine Liste (📥).<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
+A.sntog=d=>{const o=LS.get('snack_open',{});o[d.p]=!o[d.p];LS.set('snack_open',o);render()};
+A.snall=()=>{const ps=[...new Set(live(DB.snacks).map(s=>s.person))];const o=LS.get('snack_open',{});const n={};if(ps.some(p=>!o[p]))ps.forEach(p=>n[p]=true);LS.set('snack_open',n);render()};
+
 /* ---- Import einer Textliste "Name: Snack, Snack, …" (Daten werden nur eingefügt, nie im Code gespeichert) ---- */
 let IMPS=[];
 function guessKat(n){const s=n.toLowerCase();if(/fassbrause|cola|radler|wein|tinto|negroni|cocktail|bier|getränk|saft|limo|wasser|sekt|prosecco/.test(s))return'Getränke';if(/käse/.test(s))return'Milch & Käse';if(/wurst/.test(s))return'Fleisch & Fisch';if(/baguette|brot/.test(s))return'Brot & Backwaren';if(/paprika|trauben|gemüse|obst/.test(s))return'Obst & Gemüse';return'Süßes & Snacks'}
@@ -658,6 +696,7 @@ function viewSet(){
   <button class="btn" data-a="dconnect">${conn?'Neu verbinden':'Mit Dropbox verbinden'}</button>
   ${conn?`<button class="btn sec" data-a="syncnow">Jetzt synchronisieren</button><button class="btn dng" data-a="ddisc">Verbindung trennen</button>`:''}
   <p class="mu">${SS==='err'?'⚠️ '+esc(SERR):(lastSync?'Letzte Synchronisation: '+new Date(lastSync).toLocaleString('de-DE'):'')}</p></div>
+ <div class="card"><b>🛒 Einkaufsliste</b><label class="chk"><input type="checkbox" data-a="meatsplit" ${DB.einst.meatSplit?'checked':''}><span>Fleisch & Fisch <b>nicht</b> zusammenrechnen</span></label><p class="mu">Aus: gleiche Zutaten werden addiert (1000 g). An: jedes Rezept bleibt ein eigener Posten, z. B. „Hähnchenbrust 600 g + 400 g“, und lässt sich einzeln abhaken. Gilt für alles, was ab jetzt hinzugefügt wird. Die Einstellung gilt für alle Geräte.</p></div>
  <div class="card"><b>🤖 Claude (Foto- & Link-Import)</b>
   <label class="lb">API-Key</label><input class="srch" type="password" data-in="ckey" value="${esc(LS.get('claude_key',''))}" placeholder="sk-ant-…" autocomplete="off">
   <label class="lb">Modell</label><input class="srch" data-in="cmodel" value="${esc(LS.get('claude_model','claude-sonnet-5-5'))}">
@@ -679,6 +718,7 @@ A.ctest=async()=>{
   else if(r.status===429)set('⚠️ Key gültig, aber Limit erreicht (429). Später erneut versuchen.');
   else set('❌ Fehler '+r.status+': '+(j.error?.message||'unbekannt'));
  }catch(e){set('❌ Keine Verbindung möglich. Internet prüfen. ('+(e.message||e)+')')}};
+A.meatsplit=(d,el)=>{DB.einst={meatSplit:el.checked,u:now()};persist(true);toast(el.checked?'Fleisch & Fisch wird einzeln aufgeführt':'Fleisch & Fisch wird zusammengerechnet')};
 A.dconnect=()=>dbxConnect();
 A.ddisc=()=>{if(!confirm('Verbindung zu Dropbox trennen? Die Daten bleiben auf diesem Gerät erhalten.'))return;LS.set('dbx_tok',null);LS.set('sync_rev',null);syncRev=null;setStatus('off');render()};
 A.export=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,1)],{type:'application/json'}));a.download='einkauf-sicherung-'+new Date().toISOString().slice(0,10)+'.json';a.click()};
@@ -691,7 +731,7 @@ A.reload=async()=>{try{for(const r of await navigator.serviceWorker.getRegistrat
 
 /* =====================  Start  ===================== */
 async function boot(){
- rebuild();render();
+ rebuild();if(ensureArchive())persist(true);render();
  IMG.all().then(o=>{IMGM=o;for(const k in o)IMGC[k]=o[k].data;render()});
  const q=new URLSearchParams(location.search);
  if(q.get('code')){try{await dbxExchange(q.get('code'));toast('Mit Dropbox verbunden ✅');LS.set('dirty',1);view='liste'}catch(e){toast(e.message)}history.replaceState(null,'',REDIRECT);render()}
