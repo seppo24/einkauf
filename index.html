@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.2.0';
+const VERSION='1.2.1';
 const CHANGELOG=[
+{v:'1.2.1',d:'27.10.2026',t:['Benachrichtigungen zur Wochenplanung für alle drei Schritte mit neuen Texten (Vorschläge → raussuchen → Einkaufsliste kontrollieren → einkaufen gehen)']},
 {v:'1.2.0',d:'27.10.2026',t:['Wochenplanung: gleiche Ansicht wie die Rezepte (Kategorien, Suche, Filter, Fotos); statt ＋ gibt es eine Checkbox, und man kann nach „Ausgewählt“ filtern','Neuer letzter Schritt: Nach der Auswahl prüft die Person, die die Vorschläge gemacht hat, die Einkaufsliste und bestätigt sie. Erst dann gilt die Planung als fertig und kommt ins Archiv (mit Zeitpunkt der Bestätigung)']},
 {v:'1.1.1',d:'27.10.2026',t:['Einkaufsliste leeren (Listenmenü ⋮ → „Liste leeren“) mit Sicherheitsabfrage und Rückgängig','Rezeptübersicht: Mit dem ＋ neben jedem Rezept kommen die Zutaten (in der Standard-Portion) direkt auf die Einkaufsliste; das Rezept öffnen und „Zur Einkaufsliste hinzufügen“ geht weiterhin']},
 {v:'1.1.0',d:'27.10.2026',t:['Update-Hinweis: die App meldet selbst, wenn auf GitHub eine neuere Version liegt, und aktualisiert sich per Tipp (auch unter Mehr → Info → Nach Update suchen)','Automatische Sicherung in Dropbox (täglich, wöchentlich oder monatlich, Anzahl einstellbar) mit „Jetzt sichern“ und Wiederherstellen aus einer Sicherung','Doppelte Artikel zusammenführen: pro Artikel oder über „Mögliche Doppelte prüfen“; Rezepte, Listen, Favoriten und Snacks werden angepasst','Vorrat: Artikel als „haben wir normalerweise da“ markieren; aus Rezepten landen sie unter „🏠 Haben wir schon?“ (Brauchen wir / Da)','Einkaufsliste teilen (Teilen-Menü, Kopieren, WhatsApp)','Optionale Handy-Benachrichtigungen bei der Wochenplanung über ntfy.sh (in den Einstellungen ein- und ausschaltbar)']},
@@ -784,7 +785,7 @@ IN.wq=v=>{WQ=v;wRefresh()};
 IN.wto=v=>{WTO=v};IN.wtarget=v=>{WTARGET=v};
 A.wtog=(d,el)=>{const s=d.w==='A'?WSEL:WPICK;el.checked?s.add(d.id):s.delete(d.id);const n=s.size;for(const x of document.querySelectorAll('#wsc,#wcnt'))x.textContent=n};
 A.wsend=()=>{if(!WSEL.size)return toast('Bitte mindestens ein Rezept wählen');const to=WTO.trim();if(!to)return toast('Bitte einen Empfänger angeben');
- DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],gesendet:now(),u:now()};WSEL=new Set();persist();notify(to,'📅 Neue Rezept-Vorschläge',ME+' hat '+DB.wochenplan.vorschlaege.length+' Rezepte vorgeschlagen – jetzt auswählen.');toast('Vorschläge an '+to+' gesendet')};
+ DB.wochenplan={id:'wp',status:'vorschlag',von:ME,an:to,vorschlaege:[...WSEL],auswahl:[],gesendet:now(),u:now()};WSEL=new Set();persist();notify(to,'📅 Neue Rezept-Vorschläge',ME+' hat Rezepte vorgeschlagen, bitte daraus welche raussuchen.');toast('Vorschläge an '+to+' gesendet')};
 function ensureArchive(){const w=DB.wochenplan;if(!w||w.status!=='fertig'||!w.auswahl||!w.auswahl.length)return false;
  const id='a_'+(w.gewaehlt||w.u);if(DB.archiv.some(a=>a.id===id))return false;
  DB.archiv.push({id,von:w.von,an:w.an,gesendet:w.gesendet||null,gewaehlt:w.gewaehlt||w.u,best:w.bestaetigt||null,listeId:w.listeId||'',rez:(w.vorschlaege||[]).map(r=>({id:r,t:Rz(r)?.titel||'(gelöscht)',gew:w.auswahl.includes(r)})),u:now()});return true}
@@ -804,8 +805,8 @@ A.wcancel=()=>{DB.wochenplan={id:'wp',status:'leer',u:now()};persist()};
 A.wdone=()=>{const w=DB.wochenplan,sel=[...WPICK];if(!sel.length)return toast('Bitte mindestens ein Rezept wählen');
  let lid;if(WTARGET==='new'||!lists('markt').some(l=>l.id===WTARGET)){const d=new Date();lid=uid();DB.listen.push({id:lid,name:`Woche ${d.getDate()}.${d.getMonth()+1}.`,typ:'markt',u:now()})}else lid=WTARGET;
  for(const id of sel){const r=Rz(id);if(r)for(const x of r.zutaten)addItem(lid,{zid:x.zid,name:Z(x.zid)?.name||x.n,menge:x.menge==null?null:x.menge*recF(r),einheit:x.einheit,src:r.titel,srcId:r.id,rez:1})}
- LS.set('act_markt',lid);DB.wochenplan={...w,status:'pruefung',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,gewaehlt:now(),u:now()};persist();notify(w.von,'🛒 Einkaufsliste prüfen',ME+' hat '+sel.length+' Rezepte ausgewählt – bitte die Einkaufsliste prüfen und bestätigen.');toast('Einkaufsliste erstellt – '+w.von+' prüft sie jetzt')};
-A.wconfirm=()=>{const w=DB.wochenplan;if(w.status!=='pruefung')return;DB.wochenplan={...w,status:'fertig',bestaetigt:now(),gesehen:false,u:now()};ensureArchive();persist();notify(w.an,'✅ Einkaufsliste bestätigt',ME+' hat die Einkaufsliste geprüft – du kannst einkaufen.');toast('Bestätigt – '+w.an+' wird benachrichtigt')};
+ LS.set('act_markt',lid);DB.wochenplan={...w,status:'pruefung',auswahl:sel,listeId:lid,gesehen:false,gesendet:w.gesendet||w.u,gewaehlt:now(),u:now()};persist();notify(w.von,'🛒 Einkaufsliste kontrollieren',ME+' hat rausgesucht, bitte die Einkaufsliste kontrollieren.');toast('Einkaufsliste erstellt – '+w.von+' prüft sie jetzt')};
+A.wconfirm=()=>{const w=DB.wochenplan;if(w.status!=='pruefung')return;DB.wochenplan={...w,status:'fertig',bestaetigt:now(),gesehen:false,u:now()};ensureArchive();persist();notify(w.an,'✅ Du kannst einkaufen gehen',ME+' hat die Einkaufsliste kontrolliert, du kannst jetzt einkaufen gehen.');toast('Bestätigt – '+w.an+' wird benachrichtigt')};
 A.wok=()=>{DB.wochenplan={...DB.wochenplan,gesehen:true,status:'leer',u:now()};persist()};
 A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id===id))LS.set('act_markt',id);A.go({v:'liste'})};
 
