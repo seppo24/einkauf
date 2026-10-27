@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.3.3';
+const VERSION='1.3.4';
 const CHANGELOG=[
+{v:'1.3.4',d:'27.10.2026',t:['Fehler behoben: Standardgröße und Umrechnungsfaktor aus der Prüfung wurden nach einem Dropbox-Abgleich nicht immer im Zutatenkatalog gespeichert']},
 {v:'1.3.3',d:'27.10.2026',t:['Wird bei der Prüfung die Standardgröße geändert, werden die Zutaten im Rezept gleich mit umgerechnet (sofern eine Umrechnungsregel vorhanden ist)']},
 {v:'1.3.2',d:'27.10.2026',t:['Standardgröße lässt sich direkt in der Prüfung (bestehende und neue Rezepte) ändern; passt die Einheit danach, ist die Zutat erledigt']},
 {v:'1.3.1',d:'27.10.2026',t:['Bestehende Rezepte auf Standardgrößen prüfen: in der Rezeptübersicht ein Rezept lange gedrückt halten, weitere per Checkbox markieren und „Auf Standardgrößen prüfen“ wählen']},
@@ -623,10 +624,11 @@ for(const ev of ['pointerup','pointercancel','scroll'])document.addEventListener
 document.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-LP.x)>10||Math.abs(e.clientY-LP.y)>10)clearTimeout(LP.t)});
 document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.rc'))e.preventDefault()});
 document.addEventListener('click',e=>{if(LP.fired){e.stopPropagation();e.preventDefault();LP.fired=false}},true);
-function stdFindings(ids){const out=[];for(const id of ids){const r=Rz(id);if(!r)continue;r.zutaten.forEach(x=>{const z=Z(x.zid);if(!z||!z.eh||!x.einheit||!(x.menge>0)||fam(x.einheit)===fam(z.eh))return;out.push({r,x,z,st:0,cv:null})})}return out}
+function stdFindings(ids){const out=[];for(const id of ids){const r=Rz(id);if(!r)continue;r.zutaten.forEach((x,xi)=>{const z=Z(x.zid);if(!z||!z.eh||!x.einheit||!(x.menge>0)||fam(x.einheit)===fam(z.eh))return;out.push({r,x,z,rid:r.id,xi,zid:z.id,st:0,cv:null})})}return out}
+function refind(){for(const f of FIND){const r=Rz(f.rid);if(r){f.r=r;f.x=r.zutaten[f.xi]||f.x}const z=Z(f.zid);if(z)f.z=z}}
 A.rcheck=()=>{if(!RSEL.size)return toast('Bitte erst Rezepte markieren');FIND=stdFindings([...RSEL]);if(!FIND.length)return toast('Alle markierten Rezepte nutzen schon die Standardgrößen ✅');
  const el=sheet('Standardgrößen prüfen','');drawFind(el)};
-function drawFind(el){const open=FIND.filter(f=>!f.st).length;let last='',h='';
+function drawFind(el){refind();const open=FIND.filter(f=>!f.st).length;let last='',h='';
  FIND.forEach((f,i)=>{const{r,x,z}=f;if(r.id!==last){h+=`<div class="cat" style="margin-top:10px">${esc(r.titel)}</div>`;last=r.id}
   const v=convStd(z,x.menge,x.einheit);if(f.cv==null||f.cvFor!==x.menge+x.einheit){f.cv=v==null?'':fmtNum(v);f.cvFor=x.menge+x.einheit}
   const lbl=`<b>${esc(z.name)}</b>: ${esc(fmtNum(x.menge))} ${esc(x.einheit)}`;
@@ -638,10 +640,10 @@ function drawFind(el){const open=FIND.filter(f=>!f.st).length;let last='',h='';
  el.querySelector('.shb').innerHTML=`<p class="mu">Gelb markiert: Einheit weicht von der Standardgröße ab. Vorschläge sind aufgerundet und änderbar.</p>${h}${FIND.some(f=>!f.st&&convStd(f.z,f.x.menge,f.x.einheit)!=null)?'<button class="btn" data-a="fdall">✓ Alle Vorschläge übernehmen</button>':''}<button class="btn sec" data-a="fdclose">Fertig</button>`}
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.fd!==undefined&&FIND[+t.dataset.fd])FIND[+t.dataset.fd].cv=t.value});
 function fdApply(f,n){const{r,x,z}=f;x.orig=fmtNum(x.menge)+' '+x.einheit;x.menge=n;x.einheit=z.eh;r.u=now();f.st=1}
-A.fdok=(d,b)=>{const f=FIND[+d.i],n=parseNum(f.cv);if(!(n>0))return toast('Bitte eine Menge eingeben');fdApply(f,n);persist(true);drawFind(b.closest('.ov'))};
-A.fdno=(d,b)=>{FIND[+d.i].st=2;drawFind(b.closest('.ov'))};
-A.fdall=(d,b)=>{let c=0;for(const f of FIND)if(!f.st){const n=parseNum(f.cv);if(n>0&&convStd(f.z,f.x.menge,f.x.einheit)!=null){fdApply(f,n);c++}}persist(true);drawFind(b.closest('.ov'));toast(c+' Zutaten umgerechnet')};
-A.fdask=(d,b)=>{const f=FIND[+d.i],{x,z}=f,ov=b.closest('.ov');ask('Wie viele '+x.einheit+' entsprechen 1 '+z.eh+' „'+z.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');z.umr=[...(z.umr||[]),{a:n,ua:x.einheit,b:1,ub:z.eh}];z.u=now();persist(true);for(const g of FIND)g.cv=null;drawFind(ov);toast('Umrechnung gespeichert')},'z. B. 150')};
+A.fdok=(d,b)=>{refind();const f=FIND[+d.i],n=parseNum(f.cv);if(!(n>0))return toast('Bitte eine Menge eingeben');fdApply(f,n);persist(true);drawFind(b.closest('.ov'))};
+A.fdno=(d,b)=>{refind();FIND[+d.i].st=2;drawFind(b.closest('.ov'))};
+A.fdall=(d,b)=>{refind();let c=0;for(const f of FIND)if(!f.st){const n=parseNum(f.cv);if(n>0&&convStd(f.z,f.x.menge,f.x.einheit)!=null){fdApply(f,n);c++}}persist(true);drawFind(b.closest('.ov'));toast(c+' Zutaten umgerechnet')};
+A.fdask=(d,b)=>{refind();const f=FIND[+d.i],{x,z}=f,ov=b.closest('.ov'),eh=z.eh,ein=x.einheit;ask('Wie viele '+ein+' entsprechen 1 '+eh+' „'+z.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');refind();const z=f.z;z.umr=[...(z.umr||[]),{a:n,ua:ein,b:1,ub:eh}];z.u=now();persist(true);for(const g of FIND)g.cv=null;drawFind(ov);toast('Umrechnung gespeichert')},'z. B. 150')};
 A.fdclose=(d,b)=>{closeSheet(b.closest('.ov'));render()};
 
 /* ---- Rezept-Editor ---- */
@@ -656,7 +658,7 @@ const ehSel=(z,attr)=>`<label class="mu" style="display:block;margin-top:6px;fon
 function setEh(z,v){z.eh=v;z.u=now();persist(true)}
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;
  if(t.dataset.eds!==undefined&&ED){const x=ED.zut[+t.dataset.eds],z=Z(x.zid);setEh(z,t.value);let n=0;for(const y of ED.zut){y.cv=undefined;if(y.zid!==z.id||!y.einheit||fam(y.einheit)===fam(z.eh))continue;const m=parseNum(y.menge),v=m>0?convStd(z,m,y.einheit):null;if(v!=null){y.orig=fmtNum(m)+' '+y.einheit;y.menge=fmtNum(v);y.einheit=z.eh;n++}}drawEditor();toast('Standardgröße: '+t.value+(n?' – '+n+' Zutat(en) im Rezept umgerechnet':''))}
- else if(t.dataset.fds!==undefined&&FIND[+t.dataset.fds]){const z=FIND[+t.dataset.fds].z;setEh(z,t.value);let n=0;for(const f of FIND){f.cv=null;if(f.z!==z||(f.st&&f.st!==3))continue;if(fam(f.x.einheit)===fam(z.eh))f.st=3;else{const v=convStd(z,f.x.menge,f.x.einheit);if(v!=null){fdApply(f,v);n++}}}persist(true);drawFind(t.closest('.ov'));toast('Standardgröße: '+t.value+(n?' – '+n+' Zutat(en) im Rezept umgerechnet':''))}});
+ else if(t.dataset.fds!==undefined&&FIND[+t.dataset.fds]){refind();const z=FIND[+t.dataset.fds].z;setEh(z,t.value);let n=0;for(const f of FIND){f.cv=null;if(f.zid!==z.id||(f.st&&f.st!==3))continue;if(fam(f.x.einheit)===fam(z.eh))f.st=3;else{const v=convStd(z,f.x.menge,f.x.einheit);if(v!=null){fdApply(f,v);n++}}}persist(true);drawFind(t.closest('.ov'));toast('Standardgröße: '+t.value+(n?' – '+n+' Zutat(en) im Rezept umgerechnet':''))}});
 function stdInfo(x){if(ED.id||x.skip||!x.zid||!x.einheit)return null;const z=Z(x.zid);if(!z||!z.eh)return null;const m=parseNum(x.menge);if(!(m>0))return null;if(fam(x.einheit)===fam(z.eh))return null;return{z,m}}
 function stdHint(x,i){const t=stdInfo(x);if(!t)return'';const {z,m}=t,u=x.einheit;
  const v=convStd(z,m,u);
@@ -665,7 +667,7 @@ function stdHint(x,i){const t=stdInfo(x);if(!t)return'';const {z,m}=t,u=x.einhei
  return`<div class="stdh"><span>in der Standardgröße: <input class="q" inputmode="decimal" data-ed="cv" data-idx="${i}" value="${esc(x.cv)}"> <b>${esc(z.eh)}</b> <small style="display:inline">(aufgerundet aus ${esc(fmtNum(m))} ${esc(u)})</small></span><div class="row"><button class="ib" data-a="stdok" data-idx="${i}">✓ Übernehmen</button><button class="ib" data-a="stdno" data-idx="${i}">Original behalten</button></div>${ehSel(z,'data-eds="'+i+'"')}</div>`}
 A.stdok=d=>{const x=ED.zut[+d.idx],z=Z(x.zid),n=parseNum(x.cv);if(!(n>0))return toast('Bitte eine Menge eingeben');x.orig=fmtNum(parseNum(x.menge))+' '+x.einheit;x.menge=fmtNum(n);x.einheit=z.eh;x.cv=undefined;drawEditor()};
 A.stdno=d=>{ED.zut[+d.idx].skip=1;drawEditor()};
-A.stdask=d=>{const x=ED.zut[+d.idx],z=Z(x.zid);ask('Wie viele '+x.einheit+' entsprechen 1 '+z.eh+' „'+z.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');z.umr=[...(z.umr||[]),{a:n,ua:x.einheit,b:1,ub:z.eh}];z.u=now();persist(true);x.cv=undefined;drawEditor();toast('Umrechnung gespeichert: '+fmtNum(n)+' '+x.einheit+' = 1 '+z.eh)},'z. B. 150')};
+A.stdask=d=>{const x=ED.zut[+d.idx],z0=Z(x.zid),eh=z0.eh,ein=x.einheit;ask('Wie viele '+ein+' entsprechen 1 '+eh+' „'+z0.name+'“?','',v=>{const n=parseNum(v);if(!(n>0))return toast('Bitte eine Zahl eingeben');const z=Z(x.zid);z.umr=[...(z.umr||[]),{a:n,ua:ein,b:1,ub:eh}];z.u=now();persist(true);x.cv=undefined;drawEditor();toast('Umrechnung gespeichert: '+fmtNum(n)+' '+ein+' = 1 '+eh)},'z. B. 150')};
 function drawEditor(){const el=ED.el,s=ED,sc=el.querySelector('.shb').scrollTop;
  el.querySelector('.shb').innerHTML=`${s.img?`<img class="pv" alt="" src="${s.img}">`:''}<div class="row" style="margin-top:6px"><button class="ib" data-a="edimg" data-c="1">📷 Foto vom Essen</button><button class="ib" data-a="edimg">🖼️ Galerie</button>${s.img?'<button class="ib" data-a="edimgrm">Bild entfernen</button>':''}</div><label class="lb">Titel</label><input class="srch" data-ed="titel" value="${esc(s.titel)}"><label class="lb">Mengen gelten für … Portionen (Standard)</label><input class="srch" inputmode="numeric" data-ed="portionen" value="${esc(s.portionen)}"><label class="chk"><input type="checkbox" data-a="edtm" ${s.tm?'checked':''}><span>🥣 Thermomix-Rezept</span></label><label class="chk"><input type="checkbox" data-a="edsn" ${s.schnell?'checked':''}><span>⚡ Schnell (schnell zubereitet)</span></label><label class="lb">Kategorie</label><select class="srch" data-ed="kat"><option value="">– automatisch –</option>${REZ_KAT.map(k=>`<option ${k===s.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Zutaten</label>
  ${s.zut.map((x,i)=>`<div class="erow"><button class="zbtn ${x.zid||!x.name?'':'new'}" data-a="edpick" data-idx="${i}">${esc(x.name||'Zutat wählen …')}${x.zid||!x.name?'':' (neu)'}</button><input class="q" inputmode="decimal" placeholder="Menge" data-ed="menge" data-idx="${i}" value="${esc(x.menge??'')}"><select class="u" data-ed="einheit" data-idx="${i}">${unitOpts(x.einheit)}</select><button class="ib" data-a="edrm" data-idx="${i}">✕</button></div>${x.orig?`<small class="mu" style="display:block;margin:-2px 0 6px">umgerechnet, Original: ${esc(x.orig)}</small>`:''}${stdHint(x,i)}`).join('')}
