@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.3.2';
+const VERSION='1.3.3';
 const CHANGELOG=[
+{v:'1.3.3',d:'27.10.2026',t:['Wird bei der Prüfung die Standardgröße geändert, werden die Zutaten im Rezept gleich mit umgerechnet (sofern eine Umrechnungsregel vorhanden ist)']},
 {v:'1.3.2',d:'27.10.2026',t:['Standardgröße lässt sich direkt in der Prüfung (bestehende und neue Rezepte) ändern; passt die Einheit danach, ist die Zutat erledigt']},
 {v:'1.3.1',d:'27.10.2026',t:['Bestehende Rezepte auf Standardgrößen prüfen: in der Rezeptübersicht ein Rezept lange gedrückt halten, weitere per Checkbox markieren und „Auf Standardgrößen prüfen“ wählen']},
 {v:'1.3.0',d:'27.10.2026',t:['Standardgröße je Lebensmittel mit einstellbaren Umrechnungsregeln (z. B. 150 g = 1 Stück)','Beim Anlegen eines neuen Rezepts (Foto, Link, Text, manuell) erkennt die App abweichende Einheiten, markiert sie, schlägt die Menge in der Standardgröße vor (im Zweifel aufgerundet, änderbar) und fragt, ob sie übernommen werden soll; ohne Regel fragt sie nach dem Faktor und merkt ihn sich']},
@@ -654,8 +655,8 @@ function openEditor(r){
 const ehSel=(z,attr)=>`<label class="mu" style="display:block;margin-top:6px;font-size:13px">Standardgröße von „${esc(z.name)}“ ändern auf: <select class="srch" style="width:auto;display:inline-block;padding:4px 8px" ${attr}>${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select></label>`;
 function setEh(z,v){z.eh=v;z.u=now();persist(true)}
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;
- if(t.dataset.eds!==undefined&&ED){const x=ED.zut[+t.dataset.eds];setEh(Z(x.zid),t.value);for(const y of ED.zut)y.cv=undefined;drawEditor();toast('Standardgröße geändert auf '+t.value)}
- else if(t.dataset.fds!==undefined&&FIND[+t.dataset.fds]){const z=FIND[+t.dataset.fds].z;setEh(z,t.value);for(const f of FIND){f.cv=null;if(f.z===z&&!f.st&&fam(f.x.einheit)===fam(z.eh))f.st=3}drawFind(t.closest('.ov'));toast('Standardgröße geändert auf '+t.value)}});
+ if(t.dataset.eds!==undefined&&ED){const x=ED.zut[+t.dataset.eds],z=Z(x.zid);setEh(z,t.value);let n=0;for(const y of ED.zut){y.cv=undefined;if(y.zid!==z.id||!y.einheit||fam(y.einheit)===fam(z.eh))continue;const m=parseNum(y.menge),v=m>0?convStd(z,m,y.einheit):null;if(v!=null){y.orig=fmtNum(m)+' '+y.einheit;y.menge=fmtNum(v);y.einheit=z.eh;n++}}drawEditor();toast('Standardgröße: '+t.value+(n?' – '+n+' Zutat(en) im Rezept umgerechnet':''))}
+ else if(t.dataset.fds!==undefined&&FIND[+t.dataset.fds]){const z=FIND[+t.dataset.fds].z;setEh(z,t.value);let n=0;for(const f of FIND){f.cv=null;if(f.z!==z||(f.st&&f.st!==3))continue;if(fam(f.x.einheit)===fam(z.eh))f.st=3;else{const v=convStd(z,f.x.menge,f.x.einheit);if(v!=null){fdApply(f,v);n++}}}persist(true);drawFind(t.closest('.ov'));toast('Standardgröße: '+t.value+(n?' – '+n+' Zutat(en) im Rezept umgerechnet':''))}});
 function stdInfo(x){if(ED.id||x.skip||!x.zid||!x.einheit)return null;const z=Z(x.zid);if(!z||!z.eh)return null;const m=parseNum(x.menge);if(!(m>0))return null;if(fam(x.einheit)===fam(z.eh))return null;return{z,m}}
 function stdHint(x,i){const t=stdInfo(x);if(!t)return'';const {z,m}=t,u=x.einheit;
  const v=convStd(z,m,u);
