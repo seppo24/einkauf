@@ -83,7 +83,7 @@ textarea.srch{resize:vertical}
 .tt button{background:none;border:0;color:#7CFC9A;font-weight:700}
 .ver{border-left:3px solid var(--ac);padding-left:10px;margin:10px 0}
 .ver ul{margin:4px 0 0;padding-left:18px}
-.rc{display:flex;gap:10px;align-items:center}.rc>div{flex:1;min-width:0}.rplus{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:24px;line-height:1;cursor:pointer}.rplus:active{opacity:.7}.rc{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.stdh{background:#fff6dd;border:1px solid #e8cf86;border-radius:10px;padding:8px 10px;margin:-2px 0 8px;font-size:14px}.stdh .row{margin-top:6px}.stdh .q{width:64px;padding:6px}.rchk{flex:none;width:28px;height:28px;margin:0 8px;accent-color:var(--ac)}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
+.rc{display:flex;gap:10px;align-items:center}.rc>div{flex:1;min-width:0}.rplus{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#fff;font-size:24px;line-height:1;cursor:pointer}.rplus:active{opacity:.7}.vmb{margin:2px 0 8px}.rg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}.rt{position:relative;background:var(--card);border:1px solid var(--bd);border-radius:14px;overflow:hidden;cursor:pointer}.rt img,.rtp{display:block;width:100%;height:104px;object-fit:cover}.rtp{background:var(--bd);text-align:center;line-height:104px;font-size:34px}.rta{position:absolute;top:6px;right:6px}.rta .rplus{width:36px;height:36px;font-size:20px;box-shadow:0 1px 4px #0005}.rta .rchk{margin:0;background:#fff;border-radius:6px;width:26px;height:26px}.rtb{padding:8px 10px}.rtb b{display:block;font-size:14px;line-height:1.25}.rtb small{display:block;font-size:11.5px}.bknav{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0 8px}.bknav .ib[disabled]{opacity:.35}.bkpage{padding:14px}.bkt{margin:4px 0 2px;font-size:22px;line-height:1.2}.rt,.rc{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.stdh{background:#fff6dd;border:1px solid #e8cf86;border-radius:10px;padding:8px 10px;margin:-2px 0 8px;font-size:14px}.stdh .row{margin-top:6px}.stdh .q{width:64px;padding:6px}.rchk{flex:none;width:28px;height:28px;margin:0 8px;accent-color:var(--ac)}.th{width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none}.hero{width:100%;max-height:230px;object-fit:cover;border-radius:12px;margin-bottom:8px}.pv{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:6px}
 .rch{display:flex;justify-content:space-between;cursor:pointer;padding:10px 4px 4px;margin-top:10px;color:var(--tx)}
 .grp{display:block}.gh{display:flex;justify-content:space-between;gap:8px;margin-bottom:2px}.gs{color:var(--ac);font-weight:600;font-size:14px}.prt{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}.prt .nm small{display:inline;margin-left:6px}
 .stars{display:flex;gap:2px}.star{border:0;background:none;font-size:27px;line-height:1;padding:2px 3px;color:var(--bd)}.star.on{color:#f5b301}.star:disabled{opacity:.75}
@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.4.0';
+const VERSION='1.5.0';
 const CHANGELOG=[
+{v:'1.5.0',d:'28.10.2026',t:['Rezepte und Wochenplanung: Ansicht wählbar – Liste, Raster (Kacheln mit Foto) oder Kochbuch (Rezepte einzeln durchblättern, per Wischen oder Knöpfen); die Wahl wird pro Bereich gemerkt']},
 {v:'1.4.0',d:'27.10.2026',t:['Wochenplanung: Wer die Vorschläge geschickt hat, kann danach noch Rezepte hinzufügen oder abwählen; die andere Person wird per Benachrichtigung und in der App informiert (neu/entfernt)','Wer auswählt, kann vor der Bestätigung weitere Rezepte aus dem Katalog hinzufügen; die prüfende Person sieht in Benachrichtigung und App, welche Rezepte zusätzlich sind','Archiv zeigt zusätzlich gewählte Rezepte']},
 {v:'1.3.6',d:'27.10.2026',t:['Fehler behoben: Im Rezept-Editor ging nach dem Ändern einer Menge der erste Tipp (z. B. auf den Zutatennamen, „Neu anlegen“ oder „Speichern“) verloren','Neuer Artikel: „Neu anlegen“ erscheint jetzt immer, wenn es den Namen nicht ganz genau gibt (auch bei ähnlichen Namen wie „Paprika (orange)“)']},
 {v:'1.3.4',d:'27.10.2026',t:['Fehler behoben: Standardgröße und Umrechnungsfaktor aus der Prüfung wurden nach einem Dropbox-Abgleich nicht immer im Zutatenkatalog gespeichert']},
@@ -545,7 +546,13 @@ const recText=r=>(r.titel+' '+r.zutaten.map(x=>(Z(x.zid)?.name||x.n||'')).join('
 function wBadge(id,w){const p=DB.wochenplan;if(w!=='B'&&w!=='E')return'';const v=p.vorschlaege||[],o=p.orig;
  if(w==='B'){if(!v.includes(id))return'<span class="lad" style="margin-left:6px">➕ zusätzlich</span>';if(o&&!o.includes(id))return`<span class="lad" style="margin-left:6px">🆕 von ${esc(p.von)} ergänzt</span>`}
  return''}
-const recCard=(r,set,w)=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b>${wBadge(r.id,w)}<small>${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}</small></div>${set?`<input type="checkbox" class="rchk" data-a="${w==='R'?'rsel':'wtog'}" data-w="${w}" data-id="${r.id}" ${set.has(r.id)?'checked':''} aria-label="Auswählen">`:`<button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button>`}</div>`;
+const recMeta=r=>`${r.zutaten.length} Zutaten · ${recStd(r)} Portionen${r.tm?' · <span style="color:var(--ac);font-weight:600">Thermomix</span>':''}${r.schnell?' · <span style="color:var(--warn);font-weight:600">⚡ Schnell</span>':''}${avgRating(r.id)?' · <span style="color:var(--warn);font-weight:600">★ '+fmtNum(Math.round(avgRating(r.id)*10)/10)+'</span>':''}`;
+const recAct=(r,set,w)=>set?`<input type="checkbox" class="rchk" data-a="${w==='R'?'rsel':'wtog'}" data-w="${w}" data-id="${r.id}" ${set.has(r.id)?'checked':''} aria-label="Auswählen">`:`<button class="rplus" data-a="rquick" data-id="${r.id}" aria-label="Zutaten zur Einkaufsliste hinzufügen">＋</button>`;
+const recCard=(r,set,w)=>`<div class="card rc" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img class="th" alt="" src="${IMGC[r.id]}">`:''}<div><b>${esc(r.titel)}</b>${wBadge(r.id,w)}<small>${recMeta(r)}</small></div>${recAct(r,set,w)}</div>`;
+const recTile=(r,set,w)=>`<div class="rt" data-a="openrec" data-id="${r.id}">${IMGC[r.id]?`<img alt="" src="${IMGC[r.id]}">`:'<div class="rtp">🍽️</div>'}<div class="rta">${recAct(r,set,w)}</div><div class="rtb"><b>${esc(r.titel)}</b>${wBadge(r.id,w)}<small>${recMeta(r)}</small></div></div>`;
+const VM={rez:LS.get('vm_rez','liste'),wo:LS.get('vm_wo','liste')},BK={rez:null,wo:null};
+const vmBar=k=>`<div class="chips vmb">${[['liste','☰','Liste'],['raster','▦','Raster'],['buch','📖','Kochbuch']].map(([m,i,t])=>`<button class="chip ${VM[k]===m?'on':''}" data-a="vm" data-k="${k}" data-m="${m}">${i} ${t}</button>`).join('')}</div>`;
+A.vm=d=>{VM[d.k]=d.m;LS.set('vm_'+d.k,d.m);render()};
 function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLowerCase(),ti=titel.toLowerCase();
  if(/suppe|eintopf|brühe|chili con|gulasch/.test(ti))return'Suppen & Eintöpfe';
  if(/salat|bruschetta|vorspeise|carpaccio/.test(ti))return'Salate & Vorspeisen';
@@ -556,13 +563,31 @@ function guessRecKat(titel,names){const t=(titel+' '+(names||[]).join(' ')).toLo
  if(/hähnchen|huhn|rind|schwein|lachs|fisch|steak|schnitzel|hack|burger|wurst|garnelen|braten|gyros|pute|ente/.test(t))return'Fleisch & Fisch';
  if(/vegan|vegetar|gemüse|tofu|linsen|kichererbsen|curry|auflauf|ofengemüse/.test(t))return'Vegetarisch & Vegan';
  return'Sonstiges'}
-const rlist=(o)=>{o=o||{};const F=o.F||RF,Q=o.q!=null?o.q:RQ,ck=o.ck||'rec_closed',q=Q.toLowerCase().trim();
+function recSelect(o){o=o||{};const F=o.F||RF,Q=o.q!=null?o.q:RQ,q=Q.toLowerCase().trim();
  const rs=live(DB.rezepte).filter(r=>(!o.ids||o.ids.includes(r.id))&&recFilter(r,F)&&(!o.set||!F.sel||o.set.has(r.id))&&(!q||recText(r).includes(q))).sort(byTitel);
- const act=F.tm||F.schnell||F.min||F.sel;
+ const cats=[...REZ_KAT];for(const r of rs){const k=r.kat||'Sonstiges';if(!cats.includes(k))cats.push(k)}
+ return{rs,cats,q,Q,F,act:F.tm||F.schnell||F.min||F.sel}}
+const rOpts=()=>RSELM?{set:RSEL,w:'R'}:undefined;
+function woOpts(){const c=wctx();return{F:WF,q:WQ,ids:c.ids,set:c.set,w:c.w,ck:'w_closed'}}
+const vmKey=o=>o&&o.set&&o.w!=='R'?'wo':'rez';
+function bookHTML(rs,k,o){const n=rs.length;let i=rs.findIndex(r=>r.id===BK[k]);if(i<0)i=0;const r=rs[i];BK[k]=r.id;const f=recStd(r)/r.portionen;
+ const sel=o&&o.set?`<label class="chk"><input type="checkbox" class="rchk" data-a="${o.w==='R'?'rsel':'wtog'}" data-w="${o.w}" data-id="${r.id}" ${o.set.has(r.id)?'checked':''}><span>${o.w==='R'?'Markieren':'Für diese Woche wählen'}</span></label>`:`<button class="btn" data-a="rquick" data-id="${r.id}">＋ Zutaten auf die Einkaufsliste</button>`;
+ return`<div class="bknav"><button class="ib" data-a="bkgo" data-k="${k}" data-d="-1" ${i<=0?'disabled':''}>‹ Zurück</button><span>${i+1} / ${n}</span><button class="ib" data-a="bkgo" data-k="${k}" data-d="1" ${i>=n-1?'disabled':''}>Weiter ›</button></div>
+ <div class="card bkpage" data-k="${k}">${IMGC[r.id]?`<img class="hero" alt="" src="${IMGC[r.id]}">`:''}<h2 class="bkt">${esc(r.titel)}</h2>${wBadge(r.id,o&&o.w)}<small class="mu" style="display:block;margin-bottom:8px">${esc(r.kat||'Sonstiges')} · ${recMeta(r)}</small>${sel}
+ <div class="cat" style="margin-top:10px">Zutaten für ${recStd(r)} Portionen</div>${r.zutaten.map(x=>{const z=Z(x.zid);return`<div class="srow"><span>${esc(z?z.name:x.n||'?')}</span><span>${x.menge==null?'':esc(fmtQty(toBase(x.menge*f,x.einheit),fam(x.einheit)))}</span></div>`}).join('')}
+ ${r.schritte?`<div class="cat" style="margin-top:10px">Zubereitung</div><ol style="padding-left:20px;margin:6px 0">${r.schritte.split(/\n+/).filter(t=>t.trim()).map(t=>`<li style="margin-bottom:6px">${esc(t)}</li>`).join('')}</ol>`:''}
+ <button class="btn sec" data-a="bkopen" data-id="${r.id}">Portionen ändern / bewerten …</button><p class="mu" style="text-align:center">← zum Blättern wischen →</p></div>`}
+const rlist=(o)=>{o=o||{};const S=recSelect(o),{rs,cats,q,Q,F,act}=S,ck=o.ck||'rec_closed',k=vmKey(o),vm=VM[k];
  if(!rs.length)return`<div class="empty">${(Q||act)?'Nichts gefunden.':(o.set?'Keine Rezepte vorhanden.':'Noch keine Rezepte.<br>Tippe auf ＋ und füge dein erstes Rezept hinzu.')}</div>`;
- const closed=LS.get(ck,{});const cats=[...REZ_KAT];for(const r of rs){const k=r.kat||'Sonstiges';if(!cats.includes(k))cats.push(k)}
- return cats.map(k=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===k);if(!its.length)return'';const cl=!q&&!act&&closed[k];
-  return`<div class="cat rch" data-a="rtogk" data-k="${esc(k)}" data-s="${o.set&&o.w!=='R'?'w':'r'}"><span>${cl?'▸':'▾'} ${esc(k)}</span><span>${its.length}</span></div>`+(cl?'':its.map(r=>recCard(r,o.set,o.w)).join(''))}).join('')};
+ if(vm==='buch')return bookHTML(cats.flatMap(c=>rs.filter(r=>(r.kat||'Sonstiges')===c)),k,o);
+ const closed=LS.get(ck,{});
+ return cats.map(c=>{const its=rs.filter(r=>(r.kat||'Sonstiges')===c);if(!its.length)return'';const cl=!q&&!act&&closed[c];
+  return`<div class="cat rch" data-a="rtogk" data-k="${esc(c)}" data-s="${o.set&&o.w!=='R'?'w':'r'}"><span>${cl?'▸':'▾'} ${esc(c)}</span><span>${its.length}</span></div>`+(cl?'':vm==='raster'?`<div class="rg">${its.map(r=>recTile(r,o.set,o.w)).join('')}</div>`:its.map(r=>recCard(r,o.set,o.w)).join(''))}).join('')};
+const listRefresh=k=>{if(k==='wo')wRefresh();else{const l=$('#rlist');if(l)l.innerHTML=rlist(rOpts())}};
+A.bkgo=d=>{const o=d.k==='wo'?woOpts():rOpts(),S=recSelect(o),rs=S.cats.flatMap(c=>S.rs.filter(r=>(r.kat||'Sonstiges')===c));let i=rs.findIndex(r=>r.id===BK[d.k]);if(i<0)i=0;i=Math.max(0,Math.min(rs.length-1,i+ +d.d));if(rs[i])BK[d.k]=rs[i].id;listRefresh(d.k);const n=document.querySelector('.bknav');if(n)n.scrollIntoView({block:'start'})};
+A.bkopen=d=>A.openrec({id:d.id});
+let TX=null;document.addEventListener('touchstart',e=>{const p=e.target.closest&&e.target.closest('.bkpage');TX=p?{x:e.touches[0].clientX,y:e.touches[0].clientY,k:p.dataset.k}:null},{passive:true});
+document.addEventListener('touchend',e=>{if(!TX)return;const t=e.changedTouches[0],dx=t.clientX-TX.x,dy=t.clientY-TX.y;if(Math.abs(dx)>70&&Math.abs(dy)<60)A.bkgo({k:TX.k,d:dx<0?1:-1});TX=null},{passive:true});
 const meId=()=>ME.toLowerCase();
 const ratingOf=(rid,u)=>{const b=live(DB.bewertungen).find(x=>x.rid===rid&&x.user===u);return b?b.sterne:0};
 function avgRating(rid){const bs=live(DB.bewertungen).filter(x=>x.rid===rid);return bs.length?bs.reduce((a,x)=>a+x.sterne,0)/bs.length:0}
@@ -582,10 +607,10 @@ A.rfclr=d=>{if(d.s==='w')WF={tm:false,schnell:false,min:0,who:WF.who,sel:false};
 A.rate=(d,b)=>{const u=meId(),id=RD.id+'|'+u,n=+d.n;let x=DB.bewertungen.find(y=>y.id===id);
  if(x&&!x.d&&x.sterne===n){x.d=true;x.u=now()}else if(x){x.sterne=n;x.d=false;x.u=now()}else DB.bewertungen.push({id,rid:RD.id,user:u,sterne:n,u:now()});
  persist();drawRec(b.closest('.ov'))};
-A.rtogk=d=>{const W=d.s==='w',ck=W?'w_closed':'rec_closed',c=LS.get(ck,{});c[d.k]=!c[d.k];LS.set(ck,c);if(W)wRefresh();else $('#rlist').innerHTML=rlist(RSELM?{set:RSEL,w:'R'}:undefined)};
+A.rtogk=d=>{const W=d.s==='w',ck=W?'w_closed':'rec_closed',c=LS.get(ck,{});c[d.k]=!c[d.k];LS.set(ck,c);if(W)wRefresh();else $('#rlist').innerHTML=rlist(rOpts())};
 function rBar(){return RSELM?`<div class="note"><b id="rsc">${RSEL.size}</b> markiert<div class="row" style="margin-top:8px"><button class="ib" data-a="rcheck">🔍 Auf Standardgrößen prüfen</button><button class="ib" data-a="rselall">Alle</button><button class="ib" data-a="rselx">Abbrechen</button></div></div>`:''}
-function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div>${filterBar()}<div id="rbar">${rBar()}</div><div id="rlist">${rlist(RSELM?{set:RSEL,w:'R'}:undefined)}</div>${RSELM?'':'<button class="fab" data-a="newrec">＋</button>'}`}
-IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist(RSELM?{set:RSEL,w:'R'}:undefined)};
+function viewRezepte(){return`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="rsearch" value="${esc(RQ)}"></div>${filterBar()}${vmBar('rez')}<div id="rbar">${rBar()}</div><div id="rlist">${rlist(rOpts())}</div>${RSELM?'':'<button class="fab" data-a="newrec">＋</button>'}`}
+IN.rsearch=v=>{RQ=v;$('#rlist').innerHTML=rlist(rOpts())};
 A.newrec=()=>sheet('Rezept hinzufügen',`<button class="opt" data-a="recphoto" data-c="1"><span>📷</span>Foto aufnehmen</button><button class="opt" data-a="recphoto"><span>🖼️</span>Foto(s) aus Galerie wählen</button><button class="opt" data-a="reclink"><span>🔗</span>Link einfügen</button><button class="opt" data-a="rectext"><span>📋</span>Text einfügen</button><button class="opt" data-a="recman"><span>✍️</span>Manuell eingeben</button><p class="mu">Foto, Link und Text nutzen Claude zum Auslesen (API-Key unter Mehr → Einstellungen).</p>`);
 A.rectext=()=>{closeSheet();openTextImport('')};
 A.recman=()=>{closeSheet();openEditor(null)};
@@ -623,11 +648,11 @@ A.rsel=(d,el)=>{el.checked?RSEL.add(d.id):RSEL.delete(d.id);$('#rsc').textConten
 A.rselx=()=>{RSELM=false;RSEL=new Set();render()};
 A.rselall=()=>{const q=RQ.toLowerCase().trim();for(const r of live(DB.rezepte))if(recFilter(r)&&(!q||recText(r).includes(q)))RSEL.add(r.id);$('#rlist').innerHTML=rlist({set:RSEL,w:'R'});$('#rsc').textContent=RSEL.size};
 const LP={t:null,fired:false,x:0,y:0};
-document.addEventListener('pointerdown',e=>{const c=e.target.closest&&e.target.closest('.rc[data-id]');if(!c||view!=='rezepte'||RSELM||e.target.closest('.rplus'))return;LP.x=e.clientX;LP.y=e.clientY;clearTimeout(LP.t);
+document.addEventListener('pointerdown',e=>{const c=e.target.closest&&e.target.closest('.rc[data-id],.rt[data-id]');if(!c||view!=='rezepte'||RSELM||e.target.closest('.rplus'))return;LP.x=e.clientX;LP.y=e.clientY;clearTimeout(LP.t);
  LP.t=setTimeout(()=>{LP.fired=true;RSELM=true;RSEL=new Set([c.dataset.id]);if(navigator.vibrate)try{navigator.vibrate(30)}catch(x){}render()},550)});
 for(const ev of ['pointerup','pointercancel','scroll'])document.addEventListener(ev,()=>{clearTimeout(LP.t);if(LP.fired)setTimeout(()=>LP.fired=false,120)},true);
 document.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-LP.x)>10||Math.abs(e.clientY-LP.y)>10)clearTimeout(LP.t)});
-document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.rc'))e.preventDefault()});
+document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.rc,.rt'))e.preventDefault()});
 document.addEventListener('click',e=>{if(LP.fired){e.stopPropagation();e.preventDefault();LP.fired=false}},true);
 function stdFindings(ids){const out=[];for(const id of ids){const r=Rz(id);if(!r)continue;r.zutaten.forEach((x,xi)=>{const z=Z(x.zid);if(!z||!z.eh||!x.einheit||!(x.menge>0)||fam(x.einheit)===fam(z.eh))return;out.push({r,x,z,rid:r.id,xi,zid:z.id,st:0,cv:null})})}return out}
 function refind(){for(const f of FIND){const r=Rz(f.rid);if(r){f.r=r;f.x=r.zutaten[f.xi]||f.x}const z=Z(f.zid);if(z)f.z=z}}
@@ -824,9 +849,9 @@ const others=()=>live(DB.nutzer).map(n=>n.name).filter(n=>n.toLowerCase()!==ME.t
 function wctx(){const w=DB.wochenplan;if(w.status==='vorschlag'&&w.an===ME&&WPICK)return{ids:WALL?null:[...new Set([...w.vorschlaege,...WPICK])],set:WPICK,w:'B'};if(w.status==='vorschlag'&&w.von===ME&&WEDIT)return{ids:null,set:WEDIT,w:'E'};return{ids:null,set:WSEL,w:'A'}}
 const wDiff=(w,cur)=>{const o=w.orig||[],c=cur||w.vorschlaege||[];return{add:c.filter(x=>!o.includes(x)),rem:o.filter(x=>!c.includes(x))}};
 const wTitles=ids=>ids.map(i=>esc(Rz(i)?.titel||'(gelöscht)')).join(', ');
-function wListHTML(){const c=wctx();return rlist({F:WF,q:WQ,ids:c.ids,set:c.set,w:c.w,ck:'w_closed'})}
+function wListHTML(){return rlist(woOpts())}
 function wRefresh(){const l=$('#wlist');if(l)l.innerHTML=wListHTML();const c=wctx(),sc=$('#wsc');if(sc)sc.textContent=c.set.size;const n=$('#wcnt');if(n)n.textContent=c.set.size}
-const wSearch=()=>`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="wq" value="${esc(WQ)}"></div>${filterBar('w')}<div id="wlist">${wListHTML()}</div>`;
+const wSearch=()=>`<div class="bar"><input class="srch" placeholder="Rezept oder Zutat suchen …" data-in="wq" value="${esc(WQ)}"></div>${filterBar('w')}${vmBar('wo')}<div id="wlist">${wListHTML()}</div>`;
 const wCards=ids=>(ids||[]).map(id=>`<div class="card"><b>${esc(Rz(id)?.titel||'(gelöscht)')}</b>${(DB.wochenplan.extra||[]).includes(id)?`<span class="lad" style="margin-left:6px">➕ zusätzlich von ${esc(DB.wochenplan.an)}</span>`:''}</div>`).join('');
 function viewWoche(){
  const w=DB.wochenplan;
