@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline-fähig (z. B. im Supermarkt ohne Empfang).
 // Bei jeder neuen App-Version die Zahl hinter "einkauf-v" erhöhen.
-const CACHE = 'einkauf-v1.5.0';
+const CACHE = 'einkauf-v1.6.0';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

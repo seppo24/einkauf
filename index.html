@@ -98,8 +98,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.5.0';
+const VERSION='1.6.0';
 const CHANGELOG=[
+{v:'1.6.0',d:'31.10.2026',t:['Snack-Listen von Freunden: Einladungslink (👥 Freunde im Tab Snacks), Freunde tragen Namen, Snacks, Getränke, Allergien und Ernährungsweise ein (jeweils mit ＋ für weitere Felder)','Eingang in der App mit Prüfung (einzelne Einträge abwählbar) und Übernahme in die Snackliste; Benachrichtigung bei Eingang (wenn Benachrichtigungen aktiv sind)','Bei vorhandenen Personen: 📨 bittet um Aktualisierung; der Link enthält die bisherigen Angaben, nach Prüfung wird die Liste angepasst','Snackliste zeigt Getränke, Allergien und Ernährungsweise je Person']},
 {v:'1.5.0',d:'28.10.2026',t:['Rezepte und Wochenplanung: Ansicht wählbar – Liste, Raster (Kacheln mit Foto) oder Kochbuch (Rezepte einzeln durchblättern, per Wischen oder Knöpfen); die Wahl wird pro Bereich gemerkt']},
 {v:'1.4.0',d:'27.10.2026',t:['Wochenplanung: Wer die Vorschläge geschickt hat, kann danach noch Rezepte hinzufügen oder abwählen; die andere Person wird per Benachrichtigung und in der App informiert (neu/entfernt)','Wer auswählt, kann vor der Bestätigung weitere Rezepte aus dem Katalog hinzufügen; die prüfende Person sieht in Benachrichtigung und App, welche Rezepte zusätzlich sind','Archiv zeigt zusätzlich gewählte Rezepte']},
 {v:'1.3.6',d:'27.10.2026',t:['Fehler behoben: Im Rezept-Editor ging nach dem Ändern einer Menge der erste Tipp (z. B. auf den Zutatennamen, „Neu anlegen“ oder „Speichern“) verloren','Neuer Artikel: „Neu anlegen“ erscheint jetzt immer, wenn es den Namen nicht ganz genau gibt (auch bei ähnlichen Namen wie „Paprika (orange)“)']},
@@ -179,7 +180,7 @@ function freshDB(){
 
 /* =====================  Zustand  ===================== */
 let DB=LS.get('einkauf_db',null)||freshDB();
-for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen'])DB[k]=DB[k]||[];
+for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen','eingang'])DB[k]=DB[k]||[];
 DB.wochenplan=DB.wochenplan||{id:'wp',status:'leer',u:0};
 DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
 DB.einst=DB.einst||{meatSplit:false,u:0};
@@ -246,7 +247,7 @@ function mergeArr(a=[],b=[],f){const la=new Map(a.map(x=>[x.id,x])),m=new Map();
  for(const y of b){const x=la.get(y.id);if(!x){m.set(y.id,y);f.down=1}else if((x.u||0)>(y.u||0)){m.set(y.id,x);f.up=1}else{m.set(y.id,y);if((x.u||0)<(y.u||0))f.down=1}}
  for(const x of a)if(!m.has(x.id)){m.set(x.id,x);f.up=1}
  return [...m.values()]}
-const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen'];
+const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen','eingang'];
 function mergeDB(l,r){const f={up:0,down:0};const o={...r};for(const k of ARR)o[k]=mergeArr(l[k],r[k],f);
  for(const k of ['wochenplan','katOrder','einst']){const a=l[k],b=r[k];if(!b){o[k]=a;f.up=1}else if(!a){o[k]=b;f.down=1}else if((a.u||0)>(b.u||0)){o[k]=a;f.up=1}else{o[k]=b;if((a.u||0)<(b.u||0))f.down=1}}
  return {db:o,up:f.up,down:f.down}}
@@ -314,7 +315,7 @@ async function syncImages(){
  if(changed)render()}
 
 /* ---- Gemeinsame Einstellungen (in Dropbox) ---- */
-const EINST_DEF={meatSplit:false,backup:true,backupTage:7,backupKeep:8,notify:false,ntfyBase:''};
+const EINST_DEF={meatSplit:false,backup:true,backupTage:7,backupKeep:8,notify:false,ntfyBase:'',inboxKey:''};
 const E=()=>({...EINST_DEF,...(DB.einst||{})});
 function setEinst(p){DB.einst={...E(),...p,u:now()};persist(true)}
 function normDB(){for(const k of ARR)DB[k]=DB[k]||[];DB.wochenplan=DB.wochenplan||{id:'wp',status:'leer',u:0};DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};DB.einst=DB.einst||{meatSplit:false,u:0}}
@@ -416,7 +417,7 @@ function render(){
  const y=scrollY;
  const nav=[['liste','🛒','Einkauf'],['rezepte','📖','Rezepte'],['woche','📅','Woche'],['snacks','🍿','Snacks'],['drogerie','🧴','Drogerie'],['mehr','☰','Mehr']];
  const more=['fav','zut','set','info','archiv'].includes(view);
- $('#app').innerHTML=`<header><span>🛒 Einkauf</span><span class="hr"><span>${esc(ME)}</span><button id="sdot" class="dot ${SS}" data-a="syncnow" title="${esc(SERR)}"></button></span></header>${banner()}<main>${main()}</main><nav>${nav.map(([v,i,l])=>`<button data-a="go" data-v="${v}" class="${view===v||(v==='mehr'&&more)?'on':''}"><span>${i}</span>${l}${v==='woche'&&wdot()?'<i class="bdg"></i>':''}</button>`).join('')}</nav>`;
+ $('#app').innerHTML=`<header><span>🛒 Einkauf</span><span class="hr"><span>${esc(ME)}</span><button id="sdot" class="dot ${SS}" data-a="syncnow" title="${esc(SERR)}"></button></span></header>${banner()}<main>${main()}</main><nav>${nav.map(([v,i,l])=>`<button data-a="go" data-v="${v}" class="${view===v||(v==='mehr'&&more)?'on':''}"><span>${i}</span>${l}${(v==='woche'&&wdot())||(v==='snacks'&&snDot())?'<i class="bdg"></i>':''}</button>`).join('')}</nav>`;
  scrollTo(0,y)}
 function main(){switch(view){case'rezepte':return viewRezepte();case'woche':return viewWoche();case'snacks':return viewSnacks();case'drogerie':return listView('drogerie');case'fav':return viewFav();case'zut':return viewZut();case'set':return viewSet();case'info':return viewInfo();case'archiv':return viewArchiv();default:return listView('markt')}}
 function wdot(){const w=DB.wochenplan;return (w.status==='vorschlag'&&w.an===ME)||(w.status==='pruefung'&&w.von===ME)||(w.status==='fertig'&&(w.bestaetigt?w.an===ME:w.von===ME)&&!w.gesehen)}
@@ -915,11 +916,17 @@ A.wok=()=>{DB.wochenplan={...DB.wochenplan,gesehen:true,status:'leer',u:now()};p
 A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id===id))LS.set('act_markt',id);A.go({v:'liste'})};
 
 /* =====================  Snacks  ===================== */
+const snDot=()=>live(DB.eingang).some(e=>e.st==='neu');
+const isFood=s=>!s.art||s.art==='snack'||s.art==='getraenk';
 function viewSnacks(){
  const by={};for(const s of live(DB.snacks))(by[s.person]=by[s.person]||[]).push(s);
  const ps=Object.keys(by).sort((a,b)=>a.localeCompare(b,'de'));const op=LS.get('snack_open',{});
- return`<div class="bar"><b class="ttl">🍿 Snacks</b>${ps.length?`<button class="ib" data-a="snall">${ps.some(p=>!op[p])?'Alle auf':'Alle zu'}</button>`:''}<button class="ib" data-a="snimp">📥</button><button class="ib" data-a="newperson">＋ Person</button></div>`+
- (ps.length?ps.map(p=>{const o=!!op[p];return`<div class="card"><div class="ph" style="margin-bottom:${o?6:0}px"><span style="flex:1;cursor:pointer;padding:4px 0" data-a="sntog" data-p="${esc(p)}"><b>${o?'▾':'▸'} ${esc(p)}</b> <small style="display:inline">${by[p].length}</small></span><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button></span></div>${o?by[p].sort(byName).map(s=>`<div class="srow"><span>${esc(Z(s.zid)?.name||s.name)}</span><span><button class="ib" data-a="snacktol" data-id="${s.id}">🛒</button> <button class="ib" data-a="snackdel" data-id="${s.id}">✕</button></span></div>`).join(''):''}</div>`}).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“ oder importiere eine Liste (📥).<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
+ const inb=live(DB.eingang).filter(e=>e.st==='neu').sort((a,b)=>(b.t||0)-(a.t||0));
+ const row=s=>`<div class="srow"><span>${esc(Z(s.zid)?.name||s.name)}</span><span>${isFood(s)?`<button class="ib" data-a="snacktol" data-id="${s.id}">🛒</button> `:''}<button class="ib" data-a="snackdel" data-id="${s.id}">✕</button></span></div>`;
+ return`<div class="bar"><b class="ttl">🍿 Snacks</b>${ps.length?`<button class="ib" data-a="snall" title="Alle auf-/zuklappen">${ps.some(p=>!op[p])?'▾▾':'▸▸'}</button>`:''}<button class="ib" data-a="sninv" title="Freunde einladen">👥</button><button class="ib" data-a="snimp" title="Liste importieren">📥</button><button class="ib" data-a="newperson">＋</button></div>`+
+ (inb.length?`<div class="card" style="border-color:var(--ac)"><b>📥 Neu eingegangen (${inb.length})</b>${inb.map(e=>`<div class="srow"><span><b>${esc(e.name)}</b> <small style="display:inline">${e.upd?'Aktualisierung':live(DB.snacks).some(s=>s.person.toLowerCase()===e.name.toLowerCase())?'Ergänzung':'neue Person'} · ${esc(fmtDT(e.t))}</small></span><button class="ib" data-a="einrev" data-id="${e.id}">Prüfen</button></div>`).join('')}</div>`:'')+
+ (ps.length?ps.map(p=>{const o=!!op[p],its=by[p],sn=its.filter(s=>!s.art||s.art==='snack'),ge=its.filter(s=>s.art==='getraenk'),al=its.filter(s=>s.art==='allergie'),dt=its.find(s=>s.art==='diet');
+  return`<div class="card"><div class="ph" style="margin-bottom:${o?6:0}px"><span style="flex:1;cursor:pointer;padding:4px 0" data-a="sntog" data-p="${esc(p)}"><b>${o?'▾':'▸'} ${esc(p)}</b>${dt?` <small style="display:inline">🌱 ${esc(dt.name)}</small>`:''}${al.length?' <small style="display:inline">⚠️</small>':''} <small style="display:inline">${sn.length+ge.length}</small></span><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button> <button class="ib" data-a="snreq" data-p="${esc(p)}" title="Liste aktualisieren lassen">📨</button></span></div>${o?sn.sort(byName).map(row).join('')+(ge.length?`<div class="cat" style="margin:8px 0 2px">🥤 Getränke</div>`+ge.sort(byName).map(row).join(''):'')+(al.length?`<div class="cat" style="margin:8px 0 2px">⚠️ Allergien</div>`+al.map(row).join(''):'')+(dt?`<div class="cat" style="margin:8px 0 2px">🌱 Ernährungsweise</div>`+row(dt):''):''}</div>`}).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“, importiere eine Liste (📥) oder schicke Freunden den Link (👥 Freunde).<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
 A.sntog=d=>{const o=LS.get('snack_open',{});o[d.p]=!o[d.p];LS.set('snack_open',o);render()};
 A.snall=()=>{const ps=[...new Set(live(DB.snacks).map(s=>s.person))];const o=LS.get('snack_open',{});const n={};if(ps.some(p=>!o[p]))ps.forEach(p=>n[p]=true);LS.set('snack_open',n);render()};
 
@@ -946,8 +953,88 @@ A.newperson=()=>ask('Name der Person','',p=>A.snackadd({p}),'z. B. Tom');
 A.snackadd=d=>{const p=d.p;pickZutat({typ:'markt',keepOpen:true,defKat:'Süßes & Snacks',title:'Snack für '+p,onPick:z=>{if(!live(DB.snacks).some(s=>s.person===p&&s.zid===z.id)){DB.snacks.push({id:uid(),person:p,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});persist()}toast(z.name+' → '+p)}})};
 function snackToList(s){addItem(actList('markt').id,{zid:s.zid,name:Z(s.zid)?.name||s.name,menge:s.menge,einheit:s.einheit,fuer:s.person})}
 A.snacktol=d=>{const s=DB.snacks.find(x=>x.id===d.id);snackToList(s);persist();toast((Z(s.zid)?.name||s.name)+' ('+s.person+') → Liste')};
-A.snackall=d=>{const ss=live(DB.snacks).filter(s=>s.person===d.p);ss.forEach(snackToList);persist();toast(ss.length+' Snacks von '+d.p+' → Liste')};
+A.snackall=d=>{const ss=live(DB.snacks).filter(s=>s.person===d.p&&isFood(s));ss.forEach(snackToList);persist();toast(ss.length+' Snacks von '+d.p+' → Liste')};
 A.snackdel=d=>{const s=DB.snacks.find(x=>x.id===d.id);s.d=true;s.u=now();persist()};
+
+/* =====================  Snack-Listen von Freunden (Einladung, Eingang, Prüfung)  ===================== */
+const b64e=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const b64d=t=>JSON.parse(decodeURIComponent(escape(atob(String(t).replace(/-/g,'+').replace(/_/g,'/')))));
+const clean=(x,n)=>String(x==null?'':x).replace(/[\u0000-\u001f<>]/g,' ').replace(/\s+/g,' ').trim().slice(0,n||60);
+function cleanSub(j){if(!j||typeof j!=='object'||j.app!=='einkauf-snacks')return null;const name=clean(j.name,40);if(!name)return null;
+ const arr=a=>[...new Set((Array.isArray(a)?a:[]).map(x=>clean(x,60)).filter(Boolean))].slice(0,40);const dv=String(j.v||'').toLowerCase();
+ return{sid:clean(j.sid,40)||uid(),name,s:arr(j.s),g:arr(j.g),a:arr(j.a),v:dv==='vegan'?'Vegan':dv==='vegetarisch'?'Vegetarisch':'',upd:!!j.upd,t:+j.t||now()}}
+function addSub(sub){const id='e_'+sub.sid;if(DB.eingang.some(x=>x.id===id))return false;DB.eingang.push({id,...sub,st:'neu',u:now()});return true}
+let polling=false;
+async function pollInbox(manual){const k=E().inboxKey;if(!k||polling)return 0;polling=true;let n=0;
+ try{const since=LS.get('inbox_since',0)||'12h';const r=await fetch('https://ntfy.sh/einkauf-in-'+k+'/json?poll=1&since='+since);if(!r.ok)throw new Error('ntfy '+r.status);
+  const tx=await r.text();let last=+LS.get('inbox_since',0)||0;
+  for(const ln of tx.split('\n')){if(!ln.trim())continue;let m;try{m=JSON.parse(ln)}catch(e){continue}if(m.event!=='message')continue;last=Math.max(last,m.time||0);
+   let j;try{j=JSON.parse(m.message)}catch(e){continue}const sub=cleanSub(j);if(sub&&addSub(sub))n++}
+  if(last)LS.set('inbox_since',last+1);
+  if(n){persist(true);render();toast('📥 '+n+' neue Snack-Liste'+(n>1?'n':'')+' eingegangen')}else if(manual)toast('Keine neuen Snack-Listen')
+ }catch(e){if(manual)toast('Eingang konnte nicht abgerufen werden ('+(e.message||e)+')')}finally{polling=false}return n}
+function ensureInbox(){if(!E().inboxKey){const a=new Uint8Array(10);crypto.getRandomValues(a);setEinst({inboxKey:[...a].map(x=>(x%36).toString(36)).join('')})}return E().inboxKey}
+function inviteBase(){const e=E();let u=REDIRECT+'?f='+encodeURIComponent(ensureInbox());if(e.notify&&e.ntfyBase)u+='&b='+encodeURIComponent(e.ntfyBase)+'&o='+encodeURIComponent(live(DB.nutzer).map(n=>n.name).join(','));return u}
+function shareSheet(title,text,hint){sheet(title,`<textarea class="srch" rows="8" style="font-family:inherit">${esc(text)}</textarea>${navigator.share?'<button class="btn" data-a="shnat">📤 Teilen …</button>':''}<button class="btn ${navigator.share?'sec':''}" data-a="shcopy">📋 Kopieren</button><button class="btn sec" data-a="shwa">💬 Per WhatsApp senden</button>${hint?`<p class="mu">${hint}</p>`:''}`)}
+A.sninv=()=>{const link=inviteBase();const e=E();
+ const el=sheet('Freunde einladen','');el.querySelector('.shb').innerHTML=`<p class="mu">Schicke diesen Link an Freunde. Sie tragen Namen, Snacks, Getränke, Allergien und Ernährungsweise ein. Bei dir erscheint die Liste unter Snacks im <b>Eingang</b>, und du prüfst sie, bevor sie übernommen wird.</p><textarea class="srch" rows="6" style="font-family:inherit">Hallo! 🍿 Wir sammeln die Lieblingssnacks, Getränke und Allergien unserer Freunde. Trag deine bitte hier ein (dauert ca. 2 Minuten):\n${esc(link)}</textarea>${navigator.share?'<button class="btn" data-a="shnat">📤 Teilen …</button>':''}<button class="btn ${navigator.share?'sec':''}" data-a="shcopy">📋 Kopieren</button><button class="btn sec" data-a="shwa">💬 Per WhatsApp senden</button><button class="btn sec" data-a="sninbox">🔄 Eingang jetzt abrufen</button><p class="mu">${e.notify&&e.ntfyBase?'Du und deine Partnerin bekommt eine Benachrichtigung, sobald eine Liste eingeht (ntfy-App).':'Tipp: Unter Mehr → Einstellungen → Benachrichtigungen einschalten, dann bekommt ihr eine Benachrichtigung, sobald eine Liste eingeht. Danach den Link hier neu kopieren.'} Eingänge werden abgerufen, wenn die App geöffnet ist; der Zwischenspeicher hält 12 Stunden.</p>`};
+A.sninbox=()=>pollInbox(true);
+A.snreq=d=>{const p=d.p,its=live(DB.snacks).filter(s=>s.person===p),nm=a=>its.filter(s=>(s.art||'snack')===a).map(s=>Z(s.zid)?.name||s.name);
+ const dt=its.find(s=>s.art==='diet');const link=inviteBase()+'&p='+encodeURIComponent(p)+'&d='+b64e({s:nm('snack'),g:nm('getraenk'),a:nm('allergie'),v:dt?dt.name:''});
+ shareSheet('Aktualisierung anfragen: '+p,`Hallo ${p}! 🍿 Magst du deine Snack-Liste für uns kurz aktualisieren? Hier kannst du Snacks, Getränke, Allergien und Ernährungsweise anpassen (deine bisherigen Angaben sind schon eingetragen):\n${link}`,'Die Antwort erscheint bei dir im Eingang und ersetzt nach deiner Prüfung die bisherige Liste.')};
+/* Prüfung eines Eingangs */
+let EIN=null;
+const sKey=x=>String(x||'').toLowerCase().replace(/\s+/g,' ').trim();
+const recName=s=>Z(s.zid)?.name||s.name;
+const sameRec=(s,art,name)=>(s.art||'snack')===art&&(sKey(recName(s))===sKey(name)||(s.zid&&keyOf(recName(s))===keyOf(name)));
+A.einrev=d=>{const e=DB.eingang.find(x=>x.id===d.id);if(!e)return;const ex=live(DB.snacks).filter(s=>s.person.toLowerCase()===e.name.toLowerCase());const rows=[];
+ const mk=(art,list)=>{for(const n of list){const m=ex.find(s=>sameRec(s,art,n));rows.push({art,name:n,m:m?m.id:null,on:!m})}};
+ mk('snack',e.s);mk('getraenk',e.g);mk('allergie',e.a);if(e.v)mk('diet',[e.v]);
+ const used=new Set(rows.filter(r=>r.m).map(r=>r.m));const rem=e.upd?ex.filter(s=>!used.has(s.id)).map(s=>({id:s.id,label:recName(s),art:s.art||'snack',on:true})):[];
+ EIN={id:e.id,person:ex[0]?ex[0].person:e.name,rows,rem,known:!!ex.length};drawEin(sheet('Snack-Liste prüfen',''))};
+const ART={snack:'🍿 Snacks',getraenk:'🥤 Getränke',allergie:'⚠️ Allergien',diet:'🌱 Ernährungsweise'};
+function drawEin(el){const e=DB.eingang.find(x=>x.id===EIN.id),I=EIN;const sec=a=>{const rs=I.rows.map((r,i)=>[r,i]).filter(([r])=>r.art===a);return rs.length?`<div class="cat" style="margin-top:8px">${ART[a]}</div>`+rs.map(([r,i])=>`<label class="chk"><input type="checkbox" data-a="eintog" data-i="${i}" ${r.on?'checked':''}><span>${esc(r.name)} ${r.m?'<small style="display:inline">(schon vorhanden)</small>':'<small style="display:inline;color:var(--ac)">neu</small>'}</span></label>`).join(''):''};
+ el.querySelector('.shb').innerHTML=`<p class="mu"><b>${esc(e.name)}</b> · ${esc(fmtDT(e.t))}<br>${e.upd?'Aktualisierung: Die Liste dieser Person wird entsprechend angepasst.':I.known?'Person ist schon vorhanden: neue Einträge werden ergänzt.':'Neue Person wird angelegt.'} Haken entfernen = nicht übernehmen.</p>${['snack','getraenk','allergie','diet'].map(sec).join('')}${I.rem.length?`<div class="cat" style="margin-top:12px">Wird entfernt (nicht mehr in der neuen Liste)</div>`+I.rem.map((r,i)=>`<label class="chk"><input type="checkbox" data-a="einrm" data-i="${i}" ${r.on?'checked':''}><span>${esc(r.label)} <small style="display:inline">${ART[r.art]||''}</small></span></label>`).join(''):''}<button class="btn" data-a="einok">✓ Übernehmen</button><button class="btn dng" data-a="einno">Verwerfen</button>`}
+A.eintog=(d,b)=>{EIN.rows[+d.i].on=b.checked};A.einrm=(d,b)=>{EIN.rem[+d.i].on=b.checked};
+A.einno=(d,b)=>{const e=DB.eingang.find(x=>x.id===EIN.id);e.d=true;e.u=now();closeSheet(b.closest('.ov'));EIN=null;persist();toast('Verworfen')};
+A.einok=(d,b)=>{const I=EIN,e=DB.eingang.find(x=>x.id===I.id);let add=0,del=0;
+ for(const r of I.rem)if(r.on){const s=DB.snacks.find(x=>x.id===r.id);if(s){s.d=true;s.u=now();del++}}
+ for(const r of I.rows){if(!r.on||r.m)continue;
+  if(r.art==='diet'){for(const s of live(DB.snacks))if(s.person===I.person&&s.art==='diet'){s.d=true;s.u=now()}DB.snacks.push({id:uid(),person:I.person,art:'diet',name:r.name,u:now()});add++;continue}
+  if(r.art==='allergie'){DB.snacks.push({id:uid(),person:I.person,art:'allergie',name:r.name,u:now()});add++;continue}
+  let z=findZutat(r.name);if(!z){z={id:uid(),name:r.name,kat:r.art==='getraenk'?'Getränke':guessKat(r.name),eh:'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}
+  if(live(DB.snacks).some(s=>s.person===I.person&&(s.art||'snack')===r.art&&s.zid===z.id))continue;
+  DB.snacks.push({id:uid(),person:I.person,art:r.art,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});add++}
+ e.d=true;e.st='angenommen';e.u=now();closeSheet(b.closest('.ov'));EIN=null;persist();toast('Übernommen: '+add+' neu'+(del?', '+del+' entfernt':'')+' ('+I.person+')')};
+/* ---- Ansicht für Freunde (Einladungslink): nur das Formular, kein Zugriff auf die Daten ---- */
+let FR=null;
+function friendMode(q){document.title='Snack-Liste';let d=null;try{if(q.get('d'))d=b64d(q.get('d'))}catch(e){}
+ let dr=null;if(!d){try{dr=JSON.parse(localStorage.getItem('fr_draft_'+q.get('f'))||'null')}catch(e){}}
+ const src=d||dr||{};const pad=a=>(Array.isArray(a)&&a.length?a.slice():[]).concat([''])
+ FR={key:q.get('f'),base:q.get('b')||'',owners:(q.get('o')||'').split(',').map(x=>x.trim()).filter(Boolean),upd:!!q.get('p'),name:q.get('p')||(dr&&dr.name)||LS.get('fr_name','')||'',s:pad(src.s),g:pad(src.g),a:pad(src.a),v:src.v||'',done:''};drawFriend()}
+const frSave=()=>{try{localStorage.setItem('fr_draft_'+FR.key,JSON.stringify({name:FR.name,s:FR.s,g:FR.g,a:FR.a,v:FR.v}))}catch(e){}};
+function drawFriend(focus){const F=FR,who=F.owners.length?F.owners.join(' & '):'uns';
+ if(F.done){$('#app').innerHTML=`<header><span>🍿 Snack-Liste</span></header><main>${F.done==='ok'?`<div class="card"><h2 style="margin:0 0 6px">✅ Gesendet – danke, ${esc(F.name)}!</h2><p class="mu">${esc(who)} schaut sich deine Angaben an und übernimmt sie.</p></div>`:`<div class="card"><h2 style="margin:0 0 6px">Senden hat leider nicht geklappt</h2><p class="mu">Schicke stattdessen diesen Link an ${esc(who)} (z. B. per WhatsApp). Beim Öffnen landet deine Liste dort im Eingang.</p><textarea class="srch" rows="5" readonly>${esc(F.link)}</textarea>${navigator.share?'<button class="btn" data-a="frshare">📤 Teilen …</button>':''}<button class="btn sec" data-a="frcopy">📋 Kopieren</button></div>`}<button class="btn sec" data-a="fredit">✏️ Angaben nochmal bearbeiten</button></main>`;return}
+ const sec=(k,t,ph)=>`<div class="cat" style="margin-top:14px">${t}</div>${F[k].map((x,i)=>`<div class="erow"><input class="srch" data-fr="${k}" data-i="${i}" value="${esc(x)}" placeholder="${ph}" maxlength="60"><button class="ib" data-a="frrm" data-k="${k}" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}<button class="lnk" data-a="fradd" data-k="${k}">＋ Weiteres Feld</button>`;
+ $('#app').innerHTML=`<header><span>🍿 Snack-Liste</span></header><main><div class="card"><b>${F.upd?'Bitte aktualisiere deine Angaben':'Hallo und schön, dass du mitmachst!'}</b><p class="mu" style="margin:6px 0 0">${F.upd?'Deine bisherigen Angaben sind schon eingetragen. Ändere, ergänze oder lösche, was nicht mehr stimmt.':'Trag ein, was du gerne isst und trinkst, damit wir beim nächsten Mal etwas Passendes für dich da haben.'} Deine Angaben gehen nur an ${esc(who)}.</p></div>
+ <label class="lb">Dein Name</label><input class="srch" data-fr="name" value="${esc(F.name)}" placeholder="Vorname" maxlength="40" ${F.upd?'readonly':''}>
+ ${sec('s','🍿 Snacks','z. B. Chips, Gummibärchen')}${sec('g','🥤 Getränke','z. B. Cola, Weißwein')}${sec('a','⚠️ Allergien &amp; Unverträglichkeiten','z. B. Nüsse, Laktose')}
+ <div class="cat" style="margin-top:14px">🌱 Ernährungsweise</div><select class="srch" data-fr="v"><option value="">Keine besondere (isst alles)</option><option ${F.v==='Vegetarisch'?'selected':''}>Vegetarisch</option><option ${F.v==='Vegan'?'selected':''}>Vegan</option></select>
+ <button class="btn" data-a="frsend" style="margin-top:18px">📨 Senden</button></main>`;
+ if(focus){const l=[...document.querySelectorAll(`[data-fr="${focus}"]`)];if(l.length)l[l.length-1].focus()}}
+document.addEventListener('input',e=>{const t=e.target;if(!FR||!t.dataset||t.dataset.fr===undefined)return;const k=t.dataset.fr;if(k==='name')FR.name=t.value;else if(k==='v')FR.v=t.value;else FR[k][+t.dataset.i]=t.value;frSave()});
+A.fradd=d=>{FR[d.k].push('');drawFriend(d.k)};
+A.frrm=d=>{FR[d.k].splice(+d.i,1);if(!FR[d.k].length)FR[d.k]=[''];frSave();drawFriend()};
+A.fredit=()=>{FR.done='';drawFriend()};
+A.frshare=async()=>{try{await navigator.share({title:'Snack-Liste',text:FR.link})}catch(e){}};
+A.frcopy=async()=>{try{await navigator.clipboard.writeText(FR.link);toast('Link kopiert')}catch(e){toast('Bitte den Link markieren und kopieren')}};
+A.frsend=async()=>{const F=FR,name=clean(F.name,40);if(!name)return toast('Bitte deinen Namen eintragen');
+ const li=a=>[...new Set(a.map(x=>clean(x,60)).filter(Boolean))];const pay={app:'einkauf-snacks',ver:1,sid:uid(),name,s:li(F.s),g:li(F.g),a:li(F.a),v:F.v,upd:F.upd,t:now()};
+ if(!pay.s.length&&!pay.g.length&&!pay.a.length&&!pay.v)return toast('Bitte mindestens eine Angabe machen');
+ const msg=JSON.stringify(pay);let ok=false;
+ if(msg.length<3800){try{const r=await fetch('https://ntfy.sh/',{method:'POST',body:JSON.stringify({topic:'einkauf-in-'+F.key,title:'Snack-Liste von '+name,message:msg,tags:['popcorn']})});ok=r.ok}catch(e){}
+  if(ok&&F.base)for(const o of F.owners){try{await fetch('https://ntfy.sh/',{method:'POST',body:JSON.stringify({topic:F.base+'-'+topicSlug(o),title:'🍿 Snack-Liste eingegangen',message:name+' hat eine Snack-Liste geschickt – in der App unter Snacks prüfen.',tags:['popcorn'],click:REDIRECT})})}catch(e){}}}
+ F.link=REDIRECT+'?import='+b64e(pay);LS.set('fr_name',name);F.done=ok?'ok':'fail';drawFriend()};
 
 /* =====================  Einstellungen & Info  ===================== */
 function viewSet(){
@@ -1015,14 +1102,16 @@ A.reload=async()=>{try{for(const r of await navigator.serviceWorker.getRegistrat
 
 /* =====================  Start  ===================== */
 async function boot(){
+ const q0=new URLSearchParams(location.search);if(q0.get('f')){friendMode(q0);return}
  rebuild();if(ensureArchive())persist(true);render();
  IMG.all().then(o=>{IMGM=o;for(const k in o)IMGC[k]=o[k].data;render()});
  const q=new URLSearchParams(location.search);if(q.get('u'))history.replaceState(null,'',REDIRECT);
  if(q.get('code')){try{await dbxExchange(q.get('code'));toast('Mit Dropbox verbunden ✅');LS.set('dirty',1);view='liste'}catch(e){toast(e.message)}history.replaceState(null,'',REDIRECT);render()}
+ if(q.get('import')){try{const sub=cleanSub(b64d(q.get('import')));if(sub&&addSub(sub)){persist(true);view='snacks';LS.set('view','snacks');toast('📥 Snack-Liste von '+sub.name+' im Eingang')}}catch(e){}history.replaceState(null,'',REDIRECT);render()}
  if(!ME)askName(true);
- sync(true);checkUpdate();
- setInterval(()=>{if(!document.hidden){sync();checkUpdate()}},20000);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden){sync();checkUpdate()}});
+ sync(true);checkUpdate();pollInbox();let pc=0;
+ setInterval(()=>{if(!document.hidden){sync();checkUpdate();if(++pc%3===0)pollInbox()}},20000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){sync();checkUpdate();pollInbox()}});
  addEventListener('online',()=>sync());
  if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{})}
 boot();
