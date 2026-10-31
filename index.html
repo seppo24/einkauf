@@ -98,8 +98,10 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.7.1';
+const VERSION='1.8.1';
 const CHANGELOG=[
+{v:'1.8.1',d:'31.10.2026',t:['Person löschen jetzt auch direkt in der aufgeklappten Karte','Hinweis im Formular für Freunde: konkrete Vorschläge sind erwünscht (z. B. „Pringles Paprika“ statt „Chips“)']},
+{v:'1.8.0',d:'31.10.2026',t:['Snack-Liste: Namen nachträglich ändern (✏️ an der Person)','Gleiche Namen sind möglich; bei der Prüfung eines Eingangs wählst du, ob die Person schon vorhanden oder neu ist','Kommentar an der Person (z. B. zur Unterscheidung), wird nie an Freunde geschickt']},
 {v:'1.7.1',d:'31.10.2026',t:['Ernährungsweise im Formular für Freunde: zusätzliche Auswahl „Eine andere …“ mit Freitextfeld']},
 {v:'1.7.0',d:'31.10.2026',t:['Snackliste: Einträge lassen sich bearbeiten (✏️): Name/Artikel aus der Zutatenliste, Menge, Kategorie ändern (Snack, Getränk, Lieblingsküche, Allergie, Ernährungsweise) oder löschen','Neue Kategorie „Lieblingsküchen“ (Formular für Freunde, Eingang, Snackliste)','Eingang: Snacks und Getränke lassen sich vor der Übernahme einem vorhandenen Artikel zuordnen','Formular für Freunde mit Hinweis: eine Sache pro Feld, für mehrere ＋ nutzen','Snackliste: Überschrift „Snacks“ je Person wird jetzt angezeigt']},
 {v:'1.6.0',d:'31.10.2026',t:['Snack-Listen von Freunden: Einladungslink (👥 Freunde im Tab Snacks), Freunde tragen Namen, Snacks, Getränke, Allergien und Ernährungsweise ein (jeweils mit ＋ für weitere Felder)','Eingang in der App mit Prüfung (einzelne Einträge abwählbar) und Übernahme in die Snackliste; Benachrichtigung bei Eingang (wenn Benachrichtigungen aktiv sind)','Bei vorhandenen Personen: 📨 bittet um Aktualisierung; der Link enthält die bisherigen Angaben, nach Prüfung wird die Liste angepasst','Snackliste zeigt Getränke, Allergien und Ernährungsweise je Person']},
@@ -182,7 +184,7 @@ function freshDB(){
 
 /* =====================  Zustand  ===================== */
 let DB=LS.get('einkauf_db',null)||freshDB();
-for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen','eingang'])DB[k]=DB[k]||[];
+for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','personen','nutzer','archiv','bewertungen','eingang'])DB[k]=DB[k]||[];
 DB.wochenplan=DB.wochenplan||{id:'wp',status:'leer',u:0};
 DB.katOrder=DB.katOrder||{markt:[...KAT_MARKT],drogerie:[...KAT_DROG],u:1};
 DB.einst=DB.einst||{meatSplit:false,u:0};
@@ -249,7 +251,7 @@ function mergeArr(a=[],b=[],f){const la=new Map(a.map(x=>[x.id,x])),m=new Map();
  for(const y of b){const x=la.get(y.id);if(!x){m.set(y.id,y);f.down=1}else if((x.u||0)>(y.u||0)){m.set(y.id,x);f.up=1}else{m.set(y.id,y);if((x.u||0)<(y.u||0))f.down=1}}
  for(const x of a)if(!m.has(x.id)){m.set(x.id,x);f.up=1}
  return [...m.values()]}
-const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','nutzer','archiv','bewertungen','eingang'];
+const ARR=['zutaten','rezepte','listen','items','favoriten','snacks','personen','nutzer','archiv','bewertungen','eingang'];
 function mergeDB(l,r){const f={up:0,down:0};const o={...r};for(const k of ARR)o[k]=mergeArr(l[k],r[k],f);
  for(const k of ['wochenplan','katOrder','einst']){const a=l[k],b=r[k];if(!b){o[k]=a;f.up=1}else if(!a){o[k]=b;f.down=1}else if((a.u||0)>(b.u||0)){o[k]=a;f.up=1}else{o[k]=b;if((a.u||0)<(b.u||0))f.down=1}}
  return {db:o,up:f.up,down:f.down}}
@@ -832,7 +834,7 @@ function mergeZutat(src,t){const T=now();let n=0;
  for(const f of DB.favoriten)if(!f.d&&f.zid===src.id){f.zid=t.id;f.name=t.name;f.u=T}
  for(const s of DB.snacks)if(!s.d&&s.zid===src.id){s.zid=t.id;s.name=t.name;s.u=T}
  const fs=new Set();for(const f of DB.favoriten)if(!f.d){const k=f.typ+'|'+f.zid;if(fs.has(k)){f.d=true;f.u=T}else fs.add(k)}
- const ss=new Set();for(const s of DB.snacks)if(!s.d){const k=s.person.toLowerCase()+'|'+s.zid;if(ss.has(k)){s.d=true;s.u=T}else ss.add(k)}
+ const ss=new Set();for(const s of DB.snacks)if(!s.d){const k=(s.pid||String(s.person).toLowerCase())+'|'+s.zid;if(ss.has(k)){s.d=true;s.u=T}else ss.add(k)}
  const m=new Map();for(const i of DB.items){if(i.d||i.done||i.sep||i.zid!==t.id)continue;const k=i.lid+'|'+(i.fuer||'');const p=m.get(k);if(!p){m.set(k,i);continue}
   if(p.menge==null||i.menge==null||(p.einheit||'')===(i.einheit||'')){if(i.menge!=null){p.menge=(p.menge||0)+i.menge;if(!p.einheit)p.einheit=i.einheit}if(!i.vorrat)p.vorrat=0;p.u=T;i.d=true;i.u=T}}
  t.alias=[...new Set([...(t.alias||[]),src.name,...(src.alias||[])])].filter(a=>a.toLowerCase()!==t.name.toLowerCase());t.u=T;src.d=true;src.u=T;rebuild();return n}
@@ -919,18 +921,25 @@ A.wtolist=()=>{const id=DB.wochenplan.listeId;if(id&&lists('markt').some(l=>l.id
 
 /* =====================  Snacks  ===================== */
 const snDot=()=>live(DB.eingang).some(e=>e.st==='neu');
+const slugP=n=>'p_'+String(n).toLowerCase().replace(/[^a-z0-9äöüß]+/g,'_').replace(/^_|_$/g,'');
+const PR=id=>DB.personen.find(p=>p.id===id);
+const pname=s=>(PR(s.pid)||{}).name||s.person||'?';
+const persByName=n=>live(DB.personen).filter(p=>sKey(p.name)===sKey(n));
+const persLabel=p=>p.name+(p.note?' ('+p.note+')':'');
+function migPers(){for(const s of DB.snacks){if(s.pid||!s.person)continue;const id=slugP(s.person);if(!DB.personen.some(p=>p.id===id))DB.personen.push({id,name:s.person,u:1});s.pid=id}}
+function newPers(name){const p={id:uid(),name:clean(name,40),u:now()};DB.personen.push(p);return p}
 const isFood=s=>!s.art||s.art==='snack'||s.art==='getraenk';
 function viewSnacks(){
- const by={};for(const s of live(DB.snacks))(by[s.person]=by[s.person]||[]).push(s);
- const ps=Object.keys(by).sort((a,b)=>a.localeCompare(b,'de'));const op=LS.get('snack_open',{});
+ migPers();const by={};for(const s of live(DB.snacks))(by[s.pid]=by[s.pid]||[]).push(s);
+ const ps=live(DB.personen).slice().sort((a,b)=>a.name.localeCompare(b.name,'de')||(a.note||'').localeCompare(b.note||'','de')).map(p=>p.id);const op=LS.get('snack_open',{});
  const inb=live(DB.eingang).filter(e=>e.st==='neu').sort((a,b)=>(b.t||0)-(a.t||0));
  const row=s=>`<div class="srow"><span>${esc(Z(s.zid)?.name||s.name)}</span><span>${isFood(s)?`<button class="ib" data-a="snacktol" data-id="${s.id}">🛒</button> `:''}<button class="ib" data-a="snedit" data-id="${s.id}" aria-label="Bearbeiten">✏️</button> <button class="ib" data-a="snackdel" data-id="${s.id}">✕</button></span></div>`;
  return`<div class="bar"><b class="ttl">🍿 Snacks</b>${ps.length?`<button class="ib" data-a="snall" title="Alle auf-/zuklappen">${ps.some(p=>!op[p])?'▾▾':'▸▸'}</button>`:''}<button class="ib" data-a="sninv" title="Freunde einladen">👥</button><button class="ib" data-a="snimp" title="Liste importieren">📥</button><button class="ib" data-a="newperson">＋</button></div>`+
- (inb.length?`<div class="card" style="border-color:var(--ac)"><b>📥 Neu eingegangen (${inb.length})</b>${inb.map(e=>`<div class="srow"><span><b>${esc(e.name)}</b> <small style="display:inline">${e.upd?'Aktualisierung':live(DB.snacks).some(s=>s.person.toLowerCase()===e.name.toLowerCase())?'Ergänzung':'neue Person'} · ${esc(fmtDT(e.t))}</small></span><button class="ib" data-a="einrev" data-id="${e.id}">Prüfen</button></div>`).join('')}</div>`:'')+
- (ps.length?ps.map(p=>{const o=!!op[p],its=by[p],sn=its.filter(s=>!s.art||s.art==='snack'),ge=its.filter(s=>s.art==='getraenk'),al=its.filter(s=>s.art==='allergie'),ku=its.filter(s=>s.art==='kueche'),dt=its.find(s=>s.art==='diet');
-  return`<div class="card"><div class="ph" style="margin-bottom:${o?6:0}px"><span style="flex:1;cursor:pointer;padding:4px 0" data-a="sntog" data-p="${esc(p)}"><b>${o?'▾':'▸'} ${esc(p)}</b>${dt?` <small style="display:inline">🌱 ${esc(dt.name)}</small>`:''}${al.length?' <small style="display:inline">⚠️</small>':''} <small style="display:inline">${sn.length+ge.length}</small></span><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button> <button class="ib" data-a="snreq" data-p="${esc(p)}" title="Liste aktualisieren lassen">📨</button></span></div>${o?(sn.length?`<div class="cat" style="margin:8px 0 2px">🍿 Snacks</div>`+sn.sort(byName).map(row).join(''):'')+(ge.length?`<div class="cat" style="margin:8px 0 2px">🥤 Getränke</div>`+ge.sort(byName).map(row).join(''):'')+(ku.length?`<div class="cat" style="margin:8px 0 2px">🍽️ Lieblingsküchen</div>`+ku.map(row).join(''):'')+(al.length?`<div class="cat" style="margin:8px 0 2px">⚠️ Allergien</div>`+al.map(row).join(''):'')+(dt?`<div class="cat" style="margin:8px 0 2px">🌱 Ernährungsweise</div>`+row(dt):''):''}</div>`}).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“, importiere eine Liste (📥) oder schicke Freunden den Link (👥 Freunde).<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
+ (inb.length?`<div class="card" style="border-color:var(--ac)"><b>📥 Neu eingegangen (${inb.length})</b>${inb.map(e=>`<div class="srow"><span><b>${esc(e.name)}</b> <small style="display:inline">${e.upd?'Aktualisierung':persByName(e.name).length?'Name schon vorhanden':'neue Person'} · ${esc(fmtDT(e.t))}</small></span><button class="ib" data-a="einrev" data-id="${e.id}">Prüfen</button></div>`).join('')}</div>`:'')+
+ (ps.length?ps.map(p=>{const o=!!op[p],pr=PR(p),its=by[p]||[],sn=its.filter(s=>!s.art||s.art==='snack'),ge=its.filter(s=>s.art==='getraenk'),al=its.filter(s=>s.art==='allergie'),ku=its.filter(s=>s.art==='kueche'),dt=its.find(s=>s.art==='diet');
+  return`<div class="card"><div class="ph" style="margin-bottom:${o?6:0}px"><span style="flex:1;cursor:pointer;padding:4px 0" data-a="sntog" data-p="${esc(p)}"><b>${o?'▾':'▸'} ${esc(pr.name)}</b>${pr.note?` <small style="display:inline">· ${esc(pr.note)}</small>`:''}${dt?` <small style="display:inline">🌱 ${esc(dt.name)}</small>`:''}${al.length?' <small style="display:inline">⚠️</small>':''} <small style="display:inline">${sn.length+ge.length}</small></span><span><button class="ib" data-a="snackall" data-p="${esc(p)}">🛒 alle</button> <button class="ib" data-a="snackadd" data-p="${esc(p)}">＋</button> <button class="ib" data-a="snreq" data-p="${esc(p)}" title="Liste aktualisieren lassen">📨</button> <button class="ib" data-a="peredit" data-p="${esc(p)}" title="Name / Kommentar" aria-label="Person bearbeiten">✏️</button></span></div>${o?(sn.length?`<div class="cat" style="margin:8px 0 2px">🍿 Snacks</div>`+sn.sort(byName).map(row).join(''):'')+(ge.length?`<div class="cat" style="margin:8px 0 2px">🥤 Getränke</div>`+ge.sort(byName).map(row).join(''):'')+(ku.length?`<div class="cat" style="margin:8px 0 2px">🍽️ Lieblingsküchen</div>`+ku.map(row).join(''):'')+(al.length?`<div class="cat" style="margin:8px 0 2px">⚠️ Allergien</div>`+al.map(row).join(''):'')+(dt?`<div class="cat" style="margin:8px 0 2px">🌱 Ernährungsweise</div>`+row(dt):'')+`<button class="lnk" data-a="perdel" data-p="${esc(p)}" style="margin-top:10px">🗑️ Person löschen</button>`:''}</div>`}).join(''):`<div class="empty">Noch keine Snacks.<br>Tippe auf „＋ Person“, importiere eine Liste (📥) oder schicke Freunden den Link (👥 Freunde).<br>Auf der Einkaufsliste steht dann z. B. „Gummibärchen (Tom)“.</div>`)}
 A.sntog=d=>{const o=LS.get('snack_open',{});o[d.p]=!o[d.p];LS.set('snack_open',o);render()};
-A.snall=()=>{const ps=[...new Set(live(DB.snacks).map(s=>s.person))];const o=LS.get('snack_open',{});const n={};if(ps.some(p=>!o[p]))ps.forEach(p=>n[p]=true);LS.set('snack_open',n);render()};
+A.snall=()=>{const ps=live(DB.personen).map(p=>p.id);const o=LS.get('snack_open',{});const n={};if(ps.some(p=>!o[p]))ps.forEach(p=>n[p]=true);LS.set('snack_open',n);render()};
 
 /* ---- Import einer Textliste "Name: Snack, Snack, …" (Daten werden nur eingefügt, nie im Code gespeichert) ---- */
 let IMPS=[];
@@ -944,18 +953,24 @@ function drawImp(el){const by={};IMPS.forEach((x,k)=>(by[x.p]=by[x.p]||[]).push(
  el.querySelector('.shb').innerHTML=`<p class="mu">${IMPS.filter(x=>x.on).length} von ${IMPS.length} Einträgen werden importiert. Haken entfernen = überspringen, Text antippen = ändern.</p>`+Object.keys(by).map(p=>`<div class="cat">${esc(p)}</div>`+by[p].map(([x,k])=>`<div class="erow"><input type="checkbox" data-a="imptog" data-k="${k}" ${x.on?'checked':''} style="width:22px;height:22px"><input class="srch" data-in="imp" data-k="${k}" value="${esc(x.n)}"></div>`).join('')).join('')+`<button class="btn" data-a="impgo">Importieren</button>`}
 IN.imp=(v,el)=>{IMPS[+el.dataset.k].n=v};
 A.imptog=(d,b)=>{IMPS[+d.k].on=b.checked};
-A.impgo=(d,b)=>{let n=0;
+A.impgo=(d,b)=>{let n=0;migPers();
  for(const x of IMPS){const nm=x.n.trim();if(!x.on||!nm)continue;let z=findZutat(nm);
   if(!z){z={id:uid(),name:nm,kat:guessKat(nm),eh:'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}
-  const ex=live(DB.snacks).find(s=>s.person.toLowerCase()===x.p.toLowerCase());
-  if(live(DB.snacks).some(s=>s.person.toLowerCase()===x.p.toLowerCase()&&s.zid===z.id))continue;
-  DB.snacks.push({id:uid(),person:ex?ex.person:x.p,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});n++}
+  const pr=persByName(x.p)[0]||newPers(x.p);
+  if(live(DB.snacks).some(s=>s.pid===pr.id&&s.zid===z.id))continue;
+  DB.snacks.push({id:uid(),pid:pr.id,person:pr.name,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});n++}
  closeSheet(b.closest('.ov'));IMPS=[];persist();toast(n+' Snacks importiert')};
-A.newperson=()=>ask('Name der Person','',p=>A.snackadd({p}),'z. B. Tom');
-A.snackadd=d=>{const p=d.p;pickZutat({typ:'markt',keepOpen:true,defKat:'Süßes & Snacks',title:'Snack für '+p,onPick:z=>{if(!live(DB.snacks).some(s=>s.person===p&&s.zid===z.id)){DB.snacks.push({id:uid(),person:p,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});persist()}toast(z.name+' → '+p)}})};
-function snackToList(s){addItem(actList('markt').id,{zid:s.zid,name:Z(s.zid)?.name||s.name,menge:s.menge,einheit:s.einheit,fuer:s.person})}
-A.snacktol=d=>{const s=DB.snacks.find(x=>x.id===d.id);snackToList(s);persist();toast((Z(s.zid)?.name||s.name)+' ('+s.person+') → Liste')};
-A.snackall=d=>{const ss=live(DB.snacks).filter(s=>s.person===d.p&&isFood(s));ss.forEach(snackToList);persist();toast(ss.length+' Snacks von '+d.p+' → Liste')};
+A.newperson=()=>ask('Name der Person','',nm=>{migPers();const ex=persByName(nm)[0];if(ex&&!confirm('Es gibt schon eine Person „'+persLabel(ex)+'“.\nOK = trotzdem neue Person mit gleichem Namen anlegen\nAbbrechen = Snack zur vorhandenen Person hinzufügen'))return A.snackadd({p:ex.id});A.snackadd({p:newPers(nm).id})},'z. B. Tom');
+A.snackadd=d=>{const pr=PR(d.p);if(!pr)return;pickZutat({typ:'markt',keepOpen:true,defKat:'Süßes & Snacks',title:'Snack für '+pr.name,onPick:z=>{if(!live(DB.snacks).some(s=>s.pid===pr.id&&s.zid===z.id)){DB.snacks.push({id:uid(),pid:pr.id,person:pr.name,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});persist()}toast(z.name+' → '+pr.name)}})};
+function snackToList(s){addItem(actList('markt').id,{zid:s.zid,name:Z(s.zid)?.name||s.name,menge:s.menge,einheit:s.einheit,fuer:pname(s)})}
+A.snacktol=d=>{const s=DB.snacks.find(x=>x.id===d.id);snackToList(s);persist();toast((Z(s.zid)?.name||s.name)+' ('+pname(s)+') → Liste')};
+A.snackall=d=>{const ss=live(DB.snacks).filter(s=>s.pid===d.p&&isFood(s));ss.forEach(snackToList);persist();toast(ss.length+' Snacks von '+(PR(d.p)||{}).name+' → Liste')};
+A.peredit=d=>{const p=PR(d.p);if(!p)return;sheet('Person bearbeiten',`<label class="lb">Name</label><input class="srch" data-pe="name" value="${esc(p.name)}" maxlength="40"><label class="lb">Kommentar (optional)</label><input class="srch" data-pe="note" value="${esc(p.note||'')}" maxlength="60" placeholder="z. B. Kollegin, Nachbar von nebenan"><p class="mu">Der Kommentar hilft euch, gleiche Namen auseinanderzuhalten. Er bleibt bei euch und wird nie an Freunde geschickt, auch nicht im Link zum Aktualisieren.</p><button class="btn" data-a="persave" data-p="${esc(p.id)}">Speichern</button><button class="btn dng" data-a="perdel" data-p="${esc(p.id)}">Person löschen</button>`)};
+A.persave=(d,b)=>{const el=b.closest('.ov'),p=PR(d.p),nm=clean(el.querySelector('[data-pe=name]').value,40);if(!p)return;if(!nm)return toast('Bitte einen Namen eingeben');const old=p.name;
+ p.name=nm;p.note=clean(el.querySelector('[data-pe=note]').value,60);p.u=now();
+ if(old!==nm&&!live(DB.personen).some(q=>q.id!==p.id&&q.name===old)){for(const i of DB.items)if(!i.d&&!i.done&&i.fuer===old){i.fuer=nm;i.u=now()}}
+ closeSheet(el);persist();toast('Gespeichert')};
+A.perdel=(d,b)=>{const p=PR(d.p);if(!p||!confirm('„'+persLabel(p)+'“ mit allen Snack-Einträgen löschen?'))return;p.d=true;p.u=now();for(const s of DB.snacks)if(!s.d&&s.pid===p.id){s.d=true;s.u=now()}closeSheet(b.closest('.ov'));persist();toast('Gelöscht')};
 A.snackdel=d=>{const s=DB.snacks.find(x=>x.id===d.id);s.d=true;s.u=now();persist()};
 
 /* =====================  Snack-Listen von Freunden (Einladung, Eingang, Prüfung)  ===================== */
@@ -964,7 +979,7 @@ const b64d=t=>JSON.parse(decodeURIComponent(escape(atob(String(t).replace(/-/g,'
 const clean=(x,n)=>String(x==null?'':x).replace(/[\u0000-\u001f<>]/g,' ').replace(/\s+/g,' ').trim().slice(0,n||60);
 function cleanSub(j){if(!j||typeof j!=='object'||j.app!=='einkauf-snacks')return null;const name=clean(j.name,40);if(!name)return null;
  const arr=a=>[...new Set((Array.isArray(a)?a:[]).map(x=>clean(x,60)).filter(Boolean))].slice(0,40);const dv=String(j.v||'').toLowerCase();
- return{sid:clean(j.sid,40)||uid(),name,s:arr(j.s),g:arr(j.g),k:arr(j.k),a:arr(j.a),v:dv==='vegan'?'Vegan':dv==='vegetarisch'?'Vegetarisch':clean(j.v,40),upd:!!j.upd,t:+j.t||now()}}
+ return{sid:clean(j.sid,40)||uid(),name,s:arr(j.s),g:arr(j.g),k:arr(j.k),a:arr(j.a),v:dv==='vegan'?'Vegan':dv==='vegetarisch'?'Vegetarisch':clean(j.v,40),pid:clean(j.pid,40),upd:!!j.upd,t:+j.t||now()}}
 function addSub(sub){const id='e_'+sub.sid;if(DB.eingang.some(x=>x.id===id))return false;DB.eingang.push({id,...sub,st:'neu',u:now()});return true}
 let polling=false;
 async function pollInbox(manual){const k=E().inboxKey;if(!k||polling)return 0;polling=true;let n=0;
@@ -981,39 +996,44 @@ function shareSheet(title,text,hint){sheet(title,`<textarea class="srch" rows="8
 A.sninv=()=>{const link=inviteBase();const e=E();
  const el=sheet('Freunde einladen','');el.querySelector('.shb').innerHTML=`<p class="mu">Schicke diesen Link an Freunde. Sie tragen Namen, Snacks, Getränke, Allergien und Ernährungsweise ein. Bei dir erscheint die Liste unter Snacks im <b>Eingang</b>, und du prüfst sie, bevor sie übernommen wird.</p><textarea class="srch" rows="6" style="font-family:inherit">Hallo! 🍿 Wir sammeln die Lieblingssnacks, Getränke und Allergien unserer Freunde. Trag deine bitte hier ein (dauert ca. 2 Minuten):\n${esc(link)}</textarea>${navigator.share?'<button class="btn" data-a="shnat">📤 Teilen …</button>':''}<button class="btn ${navigator.share?'sec':''}" data-a="shcopy">📋 Kopieren</button><button class="btn sec" data-a="shwa">💬 Per WhatsApp senden</button><button class="btn sec" data-a="sninbox">🔄 Eingang jetzt abrufen</button><p class="mu">${e.notify&&e.ntfyBase?'Du und deine Partnerin bekommt eine Benachrichtigung, sobald eine Liste eingeht (ntfy-App).':'Tipp: Unter Mehr → Einstellungen → Benachrichtigungen einschalten, dann bekommt ihr eine Benachrichtigung, sobald eine Liste eingeht. Danach den Link hier neu kopieren.'} Eingänge werden abgerufen, wenn die App geöffnet ist; der Zwischenspeicher hält 12 Stunden.</p>`};
 A.sninbox=()=>pollInbox(true);
-A.snreq=d=>{const p=d.p,its=live(DB.snacks).filter(s=>s.person===p),nm=a=>its.filter(s=>(s.art||'snack')===a).map(s=>Z(s.zid)?.name||s.name);
- const dt=its.find(s=>s.art==='diet');const link=inviteBase()+'&p='+encodeURIComponent(p)+'&d='+b64e({s:nm('snack'),g:nm('getraenk'),k:nm('kueche'),a:nm('allergie'),v:dt?dt.name:''});
- shareSheet('Aktualisierung anfragen: '+p,`Hallo ${p}! 🍿 Magst du deine Snack-Liste für uns kurz aktualisieren? Hier kannst du Snacks, Getränke, Allergien und Ernährungsweise anpassen (deine bisherigen Angaben sind schon eingetragen):\n${link}`,'Die Antwort erscheint bei dir im Eingang und ersetzt nach deiner Prüfung die bisherige Liste.')};
+A.snreq=d=>{const p=d.p,pr=PR(p);if(!pr)return;const its=live(DB.snacks).filter(s=>s.pid===p),nm=a=>its.filter(s=>(s.art||'snack')===a).map(s=>Z(s.zid)?.name||s.name);
+ const dt=its.find(s=>s.art==='diet');const link=inviteBase()+'&p='+encodeURIComponent(pr.name)+'&i='+encodeURIComponent(p)+'&d='+b64e({s:nm('snack'),g:nm('getraenk'),k:nm('kueche'),a:nm('allergie'),v:dt?dt.name:''});
+ shareSheet('Aktualisierung anfragen: '+pr.name,`Hallo ${pr.name}! 🍿 Magst du deine Snack-Liste für uns kurz aktualisieren? Hier kannst du Snacks, Getränke, Allergien und Ernährungsweise anpassen (deine bisherigen Angaben sind schon eingetragen):\n${link}`,'Die Antwort erscheint bei dir im Eingang und ersetzt nach deiner Prüfung die bisherige Liste.')};
 /* Prüfung eines Eingangs */
 let EIN=null;
 const sKey=x=>String(x||'').toLowerCase().replace(/\s+/g,' ').trim();
 const recName=s=>Z(s.zid)?.name||s.name;
 const sameRec=(s,art,name)=>(s.art||'snack')===art&&(sKey(recName(s))===sKey(name)||(s.zid&&keyOf(recName(s))===keyOf(name)));
-A.einrev=d=>{const e=DB.eingang.find(x=>x.id===d.id);if(!e)return;const ex=live(DB.snacks).filter(s=>s.person.toLowerCase()===e.name.toLowerCase());const rows=[];
+A.einrev=d=>{const e=DB.eingang.find(x=>x.id===d.id);if(!e)return;migPers();const c=persByName(e.name);let pid=null;const ep=e.pid&&PR(e.pid);if(ep&&!ep.d)pid=ep.id;else if(c.length)pid=c[0].id;
+ buildEin(e,pid,e.name);drawEin(sheet('Snack-Liste prüfen',''))};
+function buildEin(e,pid,pn){const ex=pid?live(DB.snacks).filter(s=>s.pid===pid):[];const rows=[];
  const mk=(art,list)=>{for(const n of list){const m=ex.find(s=>sameRec(s,art,n));rows.push({art,name:n,m:m?m.id:null,on:!m})}};
  mk('snack',e.s);mk('getraenk',e.g);mk('kueche',e.k||[]);mk('allergie',e.a);if(e.v)mk('diet',[e.v]);for(const r of rows)if(r.art==='snack'||r.art==='getraenk'){const z=findZutat(r.name);r.zid=z?z.id:null}
  const used=new Set(rows.filter(r=>r.m).map(r=>r.m));const rem=e.upd?ex.filter(s=>!used.has(s.id)).map(s=>({id:s.id,label:recName(s),art:s.art||'snack',on:true})):[];
- EIN={id:e.id,person:ex[0]?ex[0].person:e.name,rows,rem,known:!!ex.length};drawEin(sheet('Snack-Liste prüfen',''))};
+ const cands=persByName(e.name);const ep=e.pid&&PR(e.pid);if(ep&&!ep.d&&!cands.includes(ep))cands.push(ep);
+ EIN={id:e.id,pid,pn,rows,rem,cands,known:!!pid}}
+A.einwho=(d,b)=>{const e=DB.eingang.find(x=>x.id===EIN.id);buildEin(e,d.pid||null,EIN.pn);drawEin(b.closest('.ov'))};
+IN.einpn=v=>{EIN.pn=v};
 const ART={snack:'🍿 Snacks',getraenk:'🥤 Getränke',kueche:'🍽️ Lieblingsküchen',allergie:'⚠️ Allergien',diet:'🌱 Ernährungsweise'};
 function drawEin(el){const e=DB.eingang.find(x=>x.id===EIN.id),I=EIN;const sec=a=>{const rs=I.rows.map((r,i)=>[r,i]).filter(([r])=>r.art===a);return rs.length?`<div class="cat" style="margin-top:8px">${ART[a]}</div>`+rs.map(([r,i])=>`<div class="erow"><input type="checkbox" data-a="eintog" data-i="${i}" ${r.on?'checked':''} style="width:22px;height:22px;flex:none">${r.art==='snack'||r.art==='getraenk'?`<button class="zbtn ${r.zid?'':'new'}" data-a="einpick" data-i="${i}">${esc(r.zid?Z(r.zid).name:r.name)}${r.zid?'':' (neu)'}</button>`:r.art==='diet'?`<span style="flex:1">${esc(r.name)}</span>`:`<input class="srch" data-in="einname" data-i="${i}" value="${esc(r.name)}" maxlength="60">`}<small style="flex:none">${r.m?'vorhanden':'<b style="color:var(--ac)">neu</b>'}</small></div>`).join(''):''};
- el.querySelector('.shb').innerHTML=`<p class="mu"><b>${esc(e.name)}</b> · ${esc(fmtDT(e.t))}<br>${e.upd?'Aktualisierung: Die Liste dieser Person wird entsprechend angepasst.':I.known?'Person ist schon vorhanden: neue Einträge werden ergänzt.':'Neue Person wird angelegt.'} Haken entfernen = nicht übernehmen. Tippe bei Snacks und Getränken auf den Namen, um den passenden Artikel aus der Zutatenliste zu wählen (so entstehen keine Doppelten auf der Einkaufsliste).</p>${['snack','getraenk','kueche','allergie','diet'].map(sec).join('')}${I.rem.length?`<div class="cat" style="margin-top:12px">Wird entfernt (nicht mehr in der neuen Liste)</div>`+I.rem.map((r,i)=>`<label class="chk"><input type="checkbox" data-a="einrm" data-i="${i}" ${r.on?'checked':''}><span>${esc(r.label)} <small style="display:inline">${ART[r.art]||''}</small></span></label>`).join(''):''}<button class="btn" data-a="einok">✓ Übernehmen</button><button class="btn dng" data-a="einno">Verwerfen</button>`}
+ el.querySelector('.shb').innerHTML=`<p class="mu"><b>${esc(e.name)}</b> · ${esc(fmtDT(e.t))}<br>${I.cands.length?'<b style="color:var(--ac)">Hinweis:</b> In der Liste gibt es schon '+(I.cands.length>1?'Personen':'eine Person')+' mit diesem Namen. Bitte unten wählen, ob es dieselbe Person ist oder eine neue. ':''}${e.upd&&I.pid?'Aktualisierung: Die Liste dieser Person wird entsprechend angepasst.':I.pid?'Neue Einträge werden bei der gewählten Person ergänzt.':'Es wird eine neue Person angelegt.'} Haken entfernen = nicht übernehmen. Tippe bei Snacks und Getränken auf den Namen, um den passenden Artikel aus der Zutatenliste zu wählen (so entstehen keine Doppelten auf der Einkaufsliste).</p>${I.cands.length?`<div class="cat" style="margin-top:8px">Wer ist das?</div>`+I.cands.map(p=>`<label class="chk"><input type="radio" name="einp" data-a="einwho" data-pid="${esc(p.id)}" ${I.pid===p.id?'checked':''}><span>${esc(persLabel(p))} <small style="display:inline">· schon in der Liste (${live(DB.snacks).filter(s=>s.pid===p.id).length} Einträge)</small></span></label>`).join('')+`<label class="chk"><input type="radio" name="einp" data-a="einwho" data-pid="" ${!I.pid?'checked':''}><span>Neue Person (gleicher Name)</span></label>`:''}${I.pid?'':`<label class="lb">Name der neuen Person</label><input class="srch" data-in="einpn" value="${esc(I.pn)}" maxlength="40">`}${['snack','getraenk','kueche','allergie','diet'].map(sec).join('')}${I.rem.length?`<div class="cat" style="margin-top:12px">Wird entfernt (nicht mehr in der neuen Liste)</div>`+I.rem.map((r,i)=>`<label class="chk"><input type="checkbox" data-a="einrm" data-i="${i}" ${r.on?'checked':''}><span>${esc(r.label)} <small style="display:inline">${ART[r.art]||''}</small></span></label>`).join(''):''}<button class="btn" data-a="einok">✓ Übernehmen</button><button class="btn dng" data-a="einno">Verwerfen</button>`}
 A.eintog=(d,b)=>{EIN.rows[+d.i].on=b.checked};
 IN.einname=(v,el)=>{EIN.rows[+el.dataset.i].name=v};
-A.einpick=(d,b)=>{const r=EIN.rows[+d.i],el=b.closest('.ov');pickZutat({typ:'markt',q:r.name,defKat:r.art==='getraenk'?'Getränke':'Süßes & Snacks',title:'Artikel wählen',onPick:z=>{r.zid=z.id;r.name=z.name;const m=live(DB.snacks).find(s=>s.person===EIN.person&&sameRec(s,r.art,z.name));r.m=m?m.id:null;if(m)r.on=false;drawEin(el)}})};A.einrm=(d,b)=>{EIN.rem[+d.i].on=b.checked};
+A.einpick=(d,b)=>{const r=EIN.rows[+d.i],el=b.closest('.ov');pickZutat({typ:'markt',q:r.name,defKat:r.art==='getraenk'?'Getränke':'Süßes & Snacks',title:'Artikel wählen',onPick:z=>{r.zid=z.id;r.name=z.name;const m=EIN.pid&&live(DB.snacks).find(s=>s.pid===EIN.pid&&sameRec(s,r.art,z.name));r.m=m?m.id:null;if(m)r.on=false;drawEin(el)}})};A.einrm=(d,b)=>{EIN.rem[+d.i].on=b.checked};
 A.einno=(d,b)=>{const e=DB.eingang.find(x=>x.id===EIN.id);e.d=true;e.u=now();closeSheet(b.closest('.ov'));EIN=null;persist();toast('Verworfen')};
-A.einok=(d,b)=>{const I=EIN,e=DB.eingang.find(x=>x.id===I.id);let add=0,del=0;
+A.einok=(d,b)=>{const I=EIN,e=DB.eingang.find(x=>x.id===I.id);let add=0,del=0;let pid=I.pid;if(!pid){const nm=clean(I.pn,40);if(!nm)return toast('Bitte einen Namen eingeben');pid=newPers(nm).id}const PN=PR(pid).name;
  for(const r of I.rem)if(r.on){const s=DB.snacks.find(x=>x.id===r.id);if(s){s.d=true;s.u=now();del++}}
  for(const r of I.rows){if(!r.on||r.m)continue;
-  if(r.art==='diet'){for(const s of live(DB.snacks))if(s.person===I.person&&s.art==='diet'){s.d=true;s.u=now()}DB.snacks.push({id:uid(),person:I.person,art:'diet',name:r.name,u:now()});add++;continue}
-  if(r.art==='allergie'||r.art==='kueche'){const nm=clean(r.name,60);if(!nm||live(DB.snacks).some(s=>s.person===I.person&&sameRec(s,r.art,nm)))continue;DB.snacks.push({id:uid(),person:I.person,art:r.art,name:nm,u:now()});add++;continue}
+  if(r.art==='diet'){for(const s of live(DB.snacks))if(s.pid===pid&&s.art==='diet'){s.d=true;s.u=now()}DB.snacks.push({id:uid(),pid,person:PN,art:'diet',name:r.name,u:now()});add++;continue}
+  if(r.art==='allergie'||r.art==='kueche'){const nm=clean(r.name,60);if(!nm||live(DB.snacks).some(s=>s.pid===pid&&sameRec(s,r.art,nm)))continue;DB.snacks.push({id:uid(),pid,person:PN,art:r.art,name:nm,u:now()});add++;continue}
   let z=(r.zid&&Z(r.zid))||findZutat(r.name);if(!z){z={id:uid(),name:r.name,kat:r.art==='getraenk'?'Getränke':guessKat(r.name),eh:'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}
-  if(live(DB.snacks).some(s=>s.person===I.person&&(s.art||'snack')===r.art&&s.zid===z.id))continue;
-  DB.snacks.push({id:uid(),person:I.person,art:r.art,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});add++}
- e.d=true;e.st='angenommen';e.u=now();closeSheet(b.closest('.ov'));EIN=null;persist();toast('Übernommen: '+add+' neu'+(del?', '+del+' entfernt':'')+' ('+I.person+')')};
+  if(live(DB.snacks).some(s=>s.pid===pid&&(s.art||'snack')===r.art&&s.zid===z.id))continue;
+  DB.snacks.push({id:uid(),pid,person:PN,art:r.art,zid:z.id,name:z.name,menge:1,einheit:'Stück',u:now()});add++}
+ e.d=true;e.st='angenommen';e.u=now();closeSheet(b.closest('.ov'));EIN=null;persist();toast('Übernommen: '+add+' neu'+(del?', '+del+' entfernt':'')+' ('+PN+')')};
 /* Eintrag bearbeiten */
 const ARTSEL=[['snack','🍿 Snack'],['getraenk','🥤 Getränk'],['kueche','🍽️ Lieblingsküche'],['allergie','⚠️ Allergie / Unverträglichkeit'],['diet','🌱 Ernährungsweise']];
 let SE=null;
-A.snedit=d=>{const s=DB.snacks.find(x=>x.id===d.id);if(!s)return;SE={id:s.id,person:s.person,art:s.art||'snack',name:recName(s),zid:s.zid||null,menge:s.menge==null?'1':fmtNum(s.menge),einheit:s.einheit||'Stück'};SE.el=sheet('Eintrag bearbeiten – '+s.person,'');drawSE()};
+A.snedit=d=>{const s=DB.snacks.find(x=>x.id===d.id);if(!s)return;SE={id:s.id,art:s.art||'snack',name:recName(s),zid:s.zid||null,menge:s.menge==null?'1':fmtNum(s.menge),einheit:s.einheit||'Stück'};SE.el=sheet('Eintrag bearbeiten – '+pname(s),'');drawSE()};
 function drawSE(){const f=SE.art==='snack'||SE.art==='getraenk';
  SE.el.querySelector('.shb').innerHTML=`<label class="lb">Kategorie</label><select class="srch" data-se="art">${ARTSEL.map(([k,t])=>`<option value="${k}" ${k===SE.art?'selected':''}>${t}</option>`).join('')}</select>
  ${f?`<label class="lb">Artikel (wie in der Zutatenliste, damit auf der Einkaufsliste nichts doppelt steht)</label><button class="zbtn ${SE.zid?'':'new'}" data-a="sepick">${esc(SE.name)}${SE.zid?'':' (neu)'}</button><label class="lb">Menge für die Einkaufsliste</label><div class="row"><input class="srch" inputmode="decimal" data-se="menge" value="${esc(SE.menge)}"><select class="u" data-se="einheit">${unitOpts(SE.einheit)}</select></div>`:`<label class="lb">Text</label><input class="srch" data-se="name" value="${esc(SE.name)}" maxlength="60">`}
@@ -1026,20 +1046,20 @@ A.sesave=(d,b)=>{const s=DB.snacks.find(x=>x.id===SE.id);if(!s)return;const food
  if(food){let z=(SE.zid&&Z(SE.zid))||findZutat(SE.name);if(!z){const nm=clean(SE.name,60);if(!nm)return toast('Bitte einen Namen eingeben');z={id:uid(),name:nm,kat:SE.art==='getraenk'?'Getränke':guessKat(nm),eh:'Stück',laden:'',alias:[],typ:'markt',u:now()};DB.zutaten.push(z);rebuild()}
   s.zid=z.id;s.name=z.name;s.menge=parseNum(SE.menge)||1;s.einheit=SE.einheit||'Stück'}
  else{const nm=clean(SE.name,60);if(!nm)return toast('Bitte einen Text eingeben');s.name=nm;delete s.zid;delete s.menge;delete s.einheit;
-  if(SE.art==='diet')for(const o of live(DB.snacks))if(o.person===s.person&&o.art==='diet'&&o.id!==s.id){o.d=true;o.u=now()}}
+  if(SE.art==='diet')for(const o of live(DB.snacks))if(o.pid===s.pid&&o.art==='diet'&&o.id!==s.id){o.d=true;o.u=now()}}
  s.art=SE.art;s.u=now();closeSheet(b.closest('.ov'));SE=null;persist();toast('Gespeichert')};
 /* ---- Ansicht für Freunde (Einladungslink): nur das Formular, kein Zugriff auf die Daten ---- */
 let FR=null;
 function friendMode(q){document.title='Snack-Liste';let d=null;try{if(q.get('d'))d=b64d(q.get('d'))}catch(e){}
  let dr=null;if(!d){try{dr=JSON.parse(localStorage.getItem('fr_draft_'+q.get('f'))||'null')}catch(e){}}
  const src=d||dr||{};const pad=a=>(Array.isArray(a)&&a.length?a.slice():[]).concat([''])
- FR={key:q.get('f'),base:q.get('b')||'',owners:(q.get('o')||'').split(',').map(x=>x.trim()).filter(Boolean),upd:!!q.get('p'),name:q.get('p')||(dr&&dr.name)||LS.get('fr_name','')||'',s:pad(src.s),g:pad(src.g),k:pad(src.k),a:pad(src.a),vsel:src.vsel!==undefined?src.vsel:(!src.v?'':src.v==='Vegan'||src.v==='Vegetarisch'?src.v:'andere'),vt:src.vt!==undefined?src.vt:(src.v&&src.v!=='Vegan'&&src.v!=='Vegetarisch'?src.v:''),done:''};drawFriend()}
+ FR={key:q.get('f'),base:q.get('b')||'',owners:(q.get('o')||'').split(',').map(x=>x.trim()).filter(Boolean),upd:!!q.get('p'),pid:q.get('i')||'',name:q.get('p')||(dr&&dr.name)||LS.get('fr_name','')||'',s:pad(src.s),g:pad(src.g),k:pad(src.k),a:pad(src.a),vsel:src.vsel!==undefined?src.vsel:(!src.v?'':src.v==='Vegan'||src.v==='Vegetarisch'?src.v:'andere'),vt:src.vt!==undefined?src.vt:(src.v&&src.v!=='Vegan'&&src.v!=='Vegetarisch'?src.v:''),done:''};drawFriend()}
 const frSave=()=>{try{localStorage.setItem('fr_draft_'+FR.key,JSON.stringify({name:FR.name,s:FR.s,g:FR.g,k:FR.k,a:FR.a,vsel:FR.vsel,vt:FR.vt}))}catch(e){}};
 function drawFriend(focus){const F=FR,who=F.owners.length?F.owners.join(' & '):'uns';
  if(F.done){$('#app').innerHTML=`<header><span>🍿 Snack-Liste</span></header><main>${F.done==='ok'?`<div class="card"><h2 style="margin:0 0 6px">✅ Gesendet – danke, ${esc(F.name)}!</h2><p class="mu">${esc(who)} schaut sich deine Angaben an und übernimmt sie.</p></div>`:`<div class="card"><h2 style="margin:0 0 6px">Senden hat leider nicht geklappt</h2><p class="mu">Schicke stattdessen diesen Link an ${esc(who)} (z. B. per WhatsApp). Beim Öffnen landet deine Liste dort im Eingang.</p><textarea class="srch" rows="5" readonly>${esc(F.link)}</textarea>${navigator.share?'<button class="btn" data-a="frshare">📤 Teilen …</button>':''}<button class="btn sec" data-a="frcopy">📋 Kopieren</button></div>`}<button class="btn sec" data-a="fredit">✏️ Angaben nochmal bearbeiten</button></main>`;return}
  const sec=(k,t,ph)=>`<div class="cat" style="margin-top:14px">${t}</div>${F[k].map((x,i)=>`<div class="erow"><input class="srch" data-fr="${k}" data-i="${i}" value="${esc(x)}" placeholder="${ph}" maxlength="60"><button class="ib" data-a="frrm" data-k="${k}" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}<button class="lnk" data-a="fradd" data-k="${k}">＋ Weiteres Feld</button>`;
  $('#app').innerHTML=`<header><span>🍿 Snack-Liste</span></header><main><div class="card"><b>${F.upd?'Bitte aktualisiere deine Angaben':'Hallo und schön, dass du mitmachst!'}</b><p class="mu" style="margin:6px 0 0">${F.upd?'Deine bisherigen Angaben sind schon eingetragen. Ändere, ergänze oder lösche, was nicht mehr stimmt.':'Trag ein, was du gerne isst und trinkst, damit wir beim nächsten Mal etwas Passendes für dich da haben.'} Deine Angaben gehen nur an ${esc(who)}.</p></div>
- <div class="card" style="background:#fff6dd;border-color:#e8cf86"><b>💡 So geht's</b><p style="margin:6px 0 0">Bitte pro Feld <b>nur eine Sache</b> eintragen (z. B. „Chips“). Für mehrere Nennungen tippst du einfach auf <b>„＋ Weiteres Feld“</b>.</p></div>
+ <div class="card" style="background:#fff6dd;border-color:#e8cf86"><b>💡 So geht's</b><p style="margin:6px 0 0">Bitte pro Feld <b>nur eine Sache</b> eintragen. Für mehrere Nennungen tippst du einfach auf <b>„＋ Weiteres Feld“</b>.</p><p style="margin:6px 0 0">Gerne <b>konkret</b> werden: „Chips“ ist zu allgemein, besser z. B. „Pringles Paprika“ oder „Chio Chips Salz“.</p></div>
  <label class="lb">Dein Name</label><input class="srch" data-fr="name" value="${esc(F.name)}" placeholder="Vorname" maxlength="40" ${F.upd?'readonly':''}>
  ${sec('s','🍿 Snacks','z. B. Chips')}${sec('g','🥤 Getränke','z. B. Cola')}${sec('k','🍽️ Lieblingsküchen (optional)','z. B. Italienisch')}${sec('a','⚠️ Allergien &amp; Unverträglichkeiten','z. B. Nüsse, Laktose')}
  <div class="cat" style="margin-top:14px">🌱 Ernährungsweise</div><select class="srch" data-fr="vsel"><option value="">Keine besondere (isst alles)</option><option ${F.vsel==='Vegetarisch'?'selected':''}>Vegetarisch</option><option ${F.vsel==='Vegan'?'selected':''}>Vegan</option><option value="andere" ${F.vsel==='andere'?'selected':''}>Eine andere …</option></select>${F.vsel==='andere'?`<input class="srch" data-fr="vt" value="${esc(F.vt)}" placeholder="Wie ernährst du dich? z. B. pescetarisch, glutenfrei" maxlength="40" style="margin-top:6px">`:''}
@@ -1052,7 +1072,7 @@ A.fredit=()=>{FR.done='';drawFriend()};
 A.frshare=async()=>{try{await navigator.share({title:'Snack-Liste',text:FR.link})}catch(e){}};
 A.frcopy=async()=>{try{await navigator.clipboard.writeText(FR.link);toast('Link kopiert')}catch(e){toast('Bitte den Link markieren und kopieren')}};
 A.frsend=async()=>{const F=FR,name=clean(F.name,40);if(!name)return toast('Bitte deinen Namen eintragen');
- const li=a=>[...new Set(a.map(x=>clean(x,60)).filter(Boolean))];const pay={app:'einkauf-snacks',ver:1,sid:uid(),name,s:li(F.s),g:li(F.g),k:li(F.k),a:li(F.a),v:F.vsel==='andere'?clean(F.vt,40):F.vsel,upd:F.upd,t:now()};
+ const li=a=>[...new Set(a.map(x=>clean(x,60)).filter(Boolean))];const pay={app:'einkauf-snacks',ver:1,sid:uid(),name,s:li(F.s),g:li(F.g),k:li(F.k),a:li(F.a),v:F.vsel==='andere'?clean(F.vt,40):F.vsel,pid:F.pid||'',upd:F.upd,t:now()};
  if(!pay.s.length&&!pay.g.length&&!pay.k.length&&!pay.a.length&&!pay.v)return toast('Bitte mindestens eine Angabe machen');
  const msg=JSON.stringify(pay);let ok=false;
  if(msg.length<3800){try{const r=await fetch('https://ntfy.sh/',{method:'POST',body:JSON.stringify({topic:'einkauf-in-'+F.key,title:'Snack-Liste von '+name,message:msg,tags:['popcorn']})});ok=r.ok}catch(e){}
