@@ -51,6 +51,7 @@ textarea.srch{resize:vertical}
 .empty{text-align:center;color:var(--mu);padding:36px 12px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:8px}
 .card b{display:block}
+.hint{background:#fff6dd;border-color:#e8cf86}.hint b{display:inline}.hint .hh{display:block;margin-bottom:8px}.hint ul{margin:0;padding:0;list-style:none}.hint li{display:flex;gap:10px;align-items:flex-start;line-height:1.4}.hint li+li{margin-top:8px}.hint li>span:first-child{flex:none}
 .ph,.srow,.krow{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ph{margin-bottom:6px}.srow{padding:6px 0;border-top:1px solid var(--bd)}
 .krow{padding:6px 0;border-bottom:1px solid var(--bd)}.krow span{flex:1}
@@ -98,8 +99,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.8.1';
+const VERSION='1.8.2';
 const CHANGELOG=[
+{v:'1.8.2',d:'31.10.2026',t:['Hinweisfeld im Formular für Freunde übersichtlicher gestaltet']},
 {v:'1.8.1',d:'31.10.2026',t:['Person löschen jetzt auch direkt in der aufgeklappten Karte','Hinweis im Formular für Freunde: konkrete Vorschläge sind erwünscht (z. B. „Pringles Paprika“ statt „Chips“)']},
 {v:'1.8.0',d:'31.10.2026',t:['Snack-Liste: Namen nachträglich ändern (✏️ an der Person)','Gleiche Namen sind möglich; bei der Prüfung eines Eingangs wählst du, ob die Person schon vorhanden oder neu ist','Kommentar an der Person (z. B. zur Unterscheidung), wird nie an Freunde geschickt']},
 {v:'1.7.1',d:'31.10.2026',t:['Ernährungsweise im Formular für Freunde: zusätzliche Auswahl „Eine andere …“ mit Freitextfeld']},
@@ -1059,7 +1061,7 @@ function drawFriend(focus){const F=FR,who=F.owners.length?F.owners.join(' & '):'
  if(F.done){$('#app').innerHTML=`<header><span>🍿 Snack-Liste</span></header><main>${F.done==='ok'?`<div class="card"><h2 style="margin:0 0 6px">✅ Gesendet – danke, ${esc(F.name)}!</h2><p class="mu">${esc(who)} schaut sich deine Angaben an und übernimmt sie.</p></div>`:`<div class="card"><h2 style="margin:0 0 6px">Senden hat leider nicht geklappt</h2><p class="mu">Schicke stattdessen diesen Link an ${esc(who)} (z. B. per WhatsApp). Beim Öffnen landet deine Liste dort im Eingang.</p><textarea class="srch" rows="5" readonly>${esc(F.link)}</textarea>${navigator.share?'<button class="btn" data-a="frshare">📤 Teilen …</button>':''}<button class="btn sec" data-a="frcopy">📋 Kopieren</button></div>`}<button class="btn sec" data-a="fredit">✏️ Angaben nochmal bearbeiten</button></main>`;return}
  const sec=(k,t,ph)=>`<div class="cat" style="margin-top:14px">${t}</div>${F[k].map((x,i)=>`<div class="erow"><input class="srch" data-fr="${k}" data-i="${i}" value="${esc(x)}" placeholder="${ph}" maxlength="60"><button class="ib" data-a="frrm" data-k="${k}" data-i="${i}" aria-label="Entfernen">✕</button></div>`).join('')}<button class="lnk" data-a="fradd" data-k="${k}">＋ Weiteres Feld</button>`;
  $('#app').innerHTML=`<header><span>🍿 Snack-Liste</span></header><main><div class="card"><b>${F.upd?'Bitte aktualisiere deine Angaben':'Hallo und schön, dass du mitmachst!'}</b><p class="mu" style="margin:6px 0 0">${F.upd?'Deine bisherigen Angaben sind schon eingetragen. Ändere, ergänze oder lösche, was nicht mehr stimmt.':'Trag ein, was du gerne isst und trinkst, damit wir beim nächsten Mal etwas Passendes für dich da haben.'} Deine Angaben gehen nur an ${esc(who)}.</p></div>
- <div class="card" style="background:#fff6dd;border-color:#e8cf86"><b>💡 So geht's</b><p style="margin:6px 0 0">Bitte pro Feld <b>nur eine Sache</b> eintragen. Für mehrere Nennungen tippst du einfach auf <b>„＋ Weiteres Feld“</b>.</p><p style="margin:6px 0 0">Gerne <b>konkret</b> werden: „Chips“ ist zu allgemein, besser z. B. „Pringles Paprika“ oder „Chio Chips Salz“.</p></div>
+ <div class="card hint"><b class="hh">💡 So geht's</b><ul><li><span>1️⃣</span><span>Pro Feld <b>nur eine Sache</b> eintragen. Für mehrere Nennungen tippst du auf <b style="white-space:nowrap">„＋ Weiteres Feld“</b>.</span></li><li><span>2️⃣</span><span>Gerne <b>konkret</b> werden: „Chips“ ist zu allgemein, besser z. B. „Pringles Paprika“ oder „Chio Chips Salz“.</span></li></ul></div>
  <label class="lb">Dein Name</label><input class="srch" data-fr="name" value="${esc(F.name)}" placeholder="Vorname" maxlength="40" ${F.upd?'readonly':''}>
  ${sec('s','🍿 Snacks','z. B. Chips')}${sec('g','🥤 Getränke','z. B. Cola')}${sec('k','🍽️ Lieblingsküchen (optional)','z. B. Italienisch')}${sec('a','⚠️ Allergien &amp; Unverträglichkeiten','z. B. Nüsse, Laktose')}
  <div class="cat" style="margin-top:14px">🌱 Ernährungsweise</div><select class="srch" data-fr="vsel"><option value="">Keine besondere (isst alles)</option><option ${F.vsel==='Vegetarisch'?'selected':''}>Vegetarisch</option><option ${F.vsel==='Vegan'?'selected':''}>Vegan</option><option value="andere" ${F.vsel==='andere'?'selected':''}>Eine andere …</option></select>${F.vsel==='andere'?`<input class="srch" data-fr="vt" value="${esc(F.vt)}" placeholder="Wie ernährst du dich? z. B. pescetarisch, glutenfrei" maxlength="40" style="margin-top:6px">`:''}
