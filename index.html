@@ -100,8 +100,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.9.0';
+const VERSION='1.9.1';
 const CHANGELOG=[
+{v:'1.9.1',d:'01.11.2026',t:['Eingabefelder bitten den Browser, keine Passwort-/Karten-/Adressleiste über der Tastatur einzublenden']},
 {v:'1.9.0',d:'01.11.2026',t:['„Neu anlegen“ steht jetzt ganz oben in der Artikel-Auswahl (kein Einklappen der Tastatur mehr nötig); Enter legt neu an bzw. wählt den genauen Treffer','Artikel können eine optionale Marke haben (beim Anlegen, im Artikel-Dialog und in der Zutatenliste); sie steht auf der Einkaufsliste unter dem Namen']},
 {v:'1.8.2',d:'31.10.2026',t:['Hinweisfeld im Formular für Freunde übersichtlicher gestaltet']},
 {v:'1.8.1',d:'31.10.2026',t:['Person löschen jetzt auch direkt in der aufgeklappten Karte','Hinweis im Formular für Freunde: konkrete Vorschläge sind erwünscht (z. B. „Pringles Paprika“ statt „Chips“)']},
@@ -186,6 +187,11 @@ function freshDB(){
  for(const [typ,seed] of [['markt',SEED_MARKT],['drogerie',SEED_DROG]])for(const k in seed)for(const s of seed[k].split(',')){const [n,eh]=s.split(':');db.zutaten.push({id:'s_'+slug(n),name:n,kat:k,eh:eh||'Stück',laden:'',alias:[],typ,u:1})}
  return db}
 
+/* Browser-Autofill (Passwort/Karte/Adresse über der Tastatur) für alle Eingabefelder abschalten */
+(function(){const fix=n=>{if(!n||n.nodeType!==1)return;const l=n.matches&&n.matches('input,textarea')?[n]:[...n.querySelectorAll?n.querySelectorAll('input,textarea'):[]];
+ for(const e of l){if(e.type==='checkbox'||e.type==='radio'||e.type==='file')continue;e.setAttribute('autocomplete','off');e.setAttribute('data-lpignore','true');e.setAttribute('data-form-type','other');e.setAttribute('data-1p-ignore','');if(e.type==='text'&&!e.hasAttribute('autocapitalize'))e.setAttribute('autocapitalize','sentences')}};
+ const go=()=>{fix(document.body);new MutationObserver(m=>{for(const r of m)r.addedNodes.forEach(fix)}).observe(document.body,{childList:true,subtree:true})};
+ if(document.body)go();else document.addEventListener('DOMContentLoaded',go)})();
 /* =====================  Zustand  ===================== */
 let DB=LS.get('einkauf_db',null)||freshDB();
 for(const k of ['zutaten','rezepte','listen','items','favoriten','snacks','personen','nutzer','archiv','bewertungen','eingang'])DB[k]=DB[k]||[];
