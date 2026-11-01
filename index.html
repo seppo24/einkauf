@@ -60,8 +60,8 @@ textarea.srch{resize:vertical}
 .lnk{background:none;border:0;color:var(--ac);padding:10px 4px;font-weight:600}
 .btn{display:block;width:100%;border:0;background:var(--ac);color:#fff;border-radius:12px;padding:13px;font-weight:600;margin-top:10px}
 .btn.sec{background:var(--ac2);color:var(--ac)}.btn.dng{background:transparent;color:var(--dng);border:1px solid var(--dng)}
-.ov{position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center}
-.sh{background:var(--card);width:100%;max-width:720px;max-height:92vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column}
+.ov{position:fixed;inset:0;bottom:var(--kb,0px);background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sh{background:var(--card);width:100%;max-width:720px;max-height:min(92vh,calc(100vh - var(--kb,0px) - 8px));border-radius:18px 18px 0 0;display:flex;flex-direction:column}
 .shh{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--bd)}
 .shb{overflow:auto;padding:12px 14px calc(16px + env(safe-area-inset-bottom))}
 .lb{display:block;font-size:13px;color:var(--mu);margin:12px 0 4px}
@@ -100,8 +100,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.9.1';
+const VERSION='1.9.2';
 const CHANGELOG=[
+{v:'1.9.2',d:'01.11.2026',t:['Dialoge (z. B. Artikel-Auswahl) rücken oberhalb der Tastatur, „neu anlegen“ wird nicht mehr verdeckt']},
 {v:'1.9.1',d:'01.11.2026',t:['Eingabefelder bitten den Browser, keine Passwort-/Karten-/Adressleiste über der Tastatur einzublenden']},
 {v:'1.9.0',d:'01.11.2026',t:['„Neu anlegen“ steht jetzt ganz oben in der Artikel-Auswahl (kein Einklappen der Tastatur mehr nötig); Enter legt neu an bzw. wählt den genauen Treffer','Artikel können eine optionale Marke haben (beim Anlegen, im Artikel-Dialog und in der Zutatenliste); sie steht auf der Einkaufsliste unter dem Namen']},
 {v:'1.8.2',d:'31.10.2026',t:['Hinweisfeld im Formular für Freunde übersichtlicher gestaltet']},
@@ -187,6 +188,8 @@ function freshDB(){
  for(const [typ,seed] of [['markt',SEED_MARKT],['drogerie',SEED_DROG]])for(const k in seed)for(const s of seed[k].split(',')){const [n,eh]=s.split(':');db.zutaten.push({id:'s_'+slug(n),name:n,kat:k,eh:eh||'Stück',laden:'',alias:[],typ,u:1})}
  return db}
 
+/* Tastatur: Dialoge sitzen oberhalb der Tastatur (sichtbarer Bereich), damit nichts verdeckt wird */
+(function(){const vv=window.visualViewport;if(!vv)return;const adj=()=>{const kb=Math.max(0,Math.round(window.innerHeight-vv.height-vv.offsetTop));document.documentElement.style.setProperty('--kb',kb>80?kb+'px':'0px')};vv.addEventListener('resize',adj);vv.addEventListener('scroll',adj);window.addEventListener('orientationchange',()=>setTimeout(adj,300))})();
 /* Browser-Autofill (Passwort/Karte/Adresse über der Tastatur) für alle Eingabefelder abschalten */
 (function(){const fix=n=>{if(!n||n.nodeType!==1)return;const l=n.matches&&n.matches('input,textarea')?[n]:[...n.querySelectorAll?n.querySelectorAll('input,textarea'):[]];
  for(const e of l){if(e.type==='checkbox'||e.type==='radio'||e.type==='file')continue;e.setAttribute('autocomplete','off');e.setAttribute('data-lpignore','true');e.setAttribute('data-form-type','other');e.setAttribute('data-1p-ignore','');if(e.type==='text'&&!e.hasAttribute('autocapitalize'))e.setAttribute('autocapitalize','sentences')}};
