@@ -51,6 +51,7 @@ textarea.srch{resize:vertical}
 .empty{text-align:center;color:var(--mu);padding:36px 12px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:8px}
 .card b{display:block}
+.mk{font-size:12.5px;color:var(--mu);margin-right:8px}
 .hint{background:#fff6dd;border-color:#e8cf86}.hint b{display:inline}.hint .hh{display:block;margin-bottom:8px}.hint ul{margin:0;padding:0;list-style:none}.hint li{display:flex;gap:10px;align-items:flex-start;line-height:1.4}.hint li+li{margin-top:8px}.hint li>span:first-child{flex:none}
 .ph,.srow,.krow{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ph{margin-bottom:6px}.srow{padding:6px 0;border-top:1px solid var(--bd)}
@@ -99,8 +100,9 @@ textarea.srch{resize:vertical}
 <script>
 'use strict';
 /* =====================  Version & Verlauf  ===================== */
-const VERSION='1.8.2';
+const VERSION='1.9.0';
 const CHANGELOG=[
+{v:'1.9.0',d:'01.11.2026',t:['„Neu anlegen“ steht jetzt ganz oben in der Artikel-Auswahl (kein Einklappen der Tastatur mehr nötig); Enter legt neu an bzw. wählt den genauen Treffer','Artikel können eine optionale Marke haben (beim Anlegen, im Artikel-Dialog und in der Zutatenliste); sie steht auf der Einkaufsliste unter dem Namen']},
 {v:'1.8.2',d:'31.10.2026',t:['Hinweisfeld im Formular für Freunde übersichtlicher gestaltet']},
 {v:'1.8.1',d:'31.10.2026',t:['Person löschen jetzt auch direkt in der aufgeklappten Karte','Hinweis im Formular für Freunde: konkrete Vorschläge sind erwünscht (z. B. „Pringles Paprika“ statt „Chips“)']},
 {v:'1.8.0',d:'31.10.2026',t:['Snack-Liste: Namen nachträglich ändern (✏️ an der Person)','Gleiche Namen sind möglich; bei der Prüfung eines Eingangs wählst du, ob die Person schon vorhanden oder neu ist','Kommentar an der Person (z. B. zur Unterscheidung), wird nie an Freunde geschickt']},
@@ -234,6 +236,7 @@ const lists=typ=>live(DB.listen).filter(l=>l.typ===typ);
 function actList(typ){let ls=lists(typ);if(!ls.length){DB.listen.push({id:uid(),name:typ==='markt'?'Einkaufsliste':'Drogerie',typ,u:now()});ls=lists(typ);persist(true)}const id=LS.get('act_'+typ);return ls.find(l=>l.id===id)||ls[0]}
 const catsOf=typ=>{const base=DB.katOrder[typ]||[];const used=[];for(const z of live(DB.zutaten))if(z.typ===typ&&!base.includes(z.kat)&&!used.includes(z.kat))used.push(z.kat);return [...base,...used]};
 const ikat=i=>(Z(i.zid)&&Z(i.zid).kat)||i.kat||'Sonstiges';
+const imarke=i=>i.marke!=null?i.marke:((Z(i.zid)&&Z(i.zid).marke)||'');
 const iladen=i=>i.laden!=null?i.laden:((Z(i.zid)&&Z(i.zid).laden)||'');
 const iname=i=>i.name+(i.fuer?` (${i.fuer})`:'');
 
@@ -461,7 +464,7 @@ function vorHTML(i){return`<div class="it"><div class="nm" data-a="editit" data-
 function rowHTML(i){
  const lad=iladen(i);
  const q=qtyCtl(i);
- return`<div class="it ${i.done?'done':''}"><div class="cb" data-a="tog" data-id="${i.id}">✓</div><div class="nm" data-a="editit" data-id="${i.id}">${esc(iname(i))}${i.done&&i.menge!=null?` <small style="display:inline">${esc(fmtQty(i.menge,i.einheit))}</small>`:''}${lad?`<br><span class="lad"><small style="display:inline;color:inherit">📍 ${esc(lad)}</small></span>`:''}</div><div class="qty">${q}</div></div>`}
+ return`<div class="it ${i.done?'done':''}"><div class="cb" data-a="tog" data-id="${i.id}">✓</div><div class="nm" data-a="editit" data-id="${i.id}">${esc(iname(i))}${i.done&&i.menge!=null?` <small style="display:inline">${esc(fmtQty(i.menge,i.einheit))}</small>`:''}${lad||imarke(i)?`<br>${imarke(i)?`<span class="mk">🏷️ ${esc(imarke(i))}</span>`:''}${lad?`<span class="lad"><small style="display:inline;color:inherit">📍 ${esc(lad)}</small></span>`:''}`:''}</div><div class="qty">${q}</div></div>`}
 function listView(typ){
  const l=actList(typ);const items=live(DB.items).filter(i=>i.lid===l.id);const flt=FLT[typ]||'';
  const laeden=[...new Set(items.map(iladen).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
@@ -517,13 +520,14 @@ A.kadd=(d,b)=>{const el=b.closest('.ov'),typ=el.dataset.typ,v=el.querySelector('
 A.editit=d=>{const i=item(d.id),z=Z(i.zid),typ=(lists('markt').some(l=>l.id===i.lid))?'markt':'drogerie';
  const el=sheet(iname(i),`<label class="lb">Menge</label><div class="row"><input class="srch" inputmode="decimal" name="m" value="${i.menge==null?'':fmtNum(i.menge)}"><select class="u" name="e">${unitOpts(i.einheit)}</select></div>
  <label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(typ).map(k=>`<option ${k===ikat(i)?'selected':''}>${esc(k)}</option>`).join('')}</select>
+ <label class="lb">Marke (optional)</label><input class="srch" name="mk" value="${esc(imarke(i))}" placeholder="z. B. Barilla, Alpro" maxlength="40">
  <label class="lb">Wo gibt es das? (Laden)</label><input class="srch" name="l" list="ladenlist" value="${esc(iladen(i))}" placeholder="z. B. Rewe, Metzger, dm"><datalist id="ladenlist">${[...new Set(live(DB.zutaten).map(x=>x.laden).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
  ${z?`<label class="chk"><input type="checkbox" name="v" ${z.vorrat?'checked':''}><span>🏠 Vorrat – haben wir normalerweise da</span></label>`:''}
  <button class="btn" data-a="itsave" data-id="${i.id}" data-typ="${typ}">Speichern</button><button class="btn sec" data-a="itfav" data-id="${i.id}" data-typ="${typ}">⭐ Zu Favoriten</button><button class="btn dng" data-a="itdel" data-id="${i.id}">Entfernen</button>`)};
 A.itsave=(d,b)=>{const el=b.closest('.ov'),i=item(d.id),f=n=>el.querySelector(`[name=${n}]`).value;
  i.menge=parseNum(f('m'));i.einheit=f('e');if(i.menge==null&&!i.einheit)i.einheit='';
- const kat=f('k'),lad=f('l').trim();const z=Z(i.zid);
- if(z){z.kat=kat;z.laden=lad;const vc=el.querySelector('[name=v]');if(vc){z.vorrat=vc.checked;if(!vc.checked)i.vorrat=0}z.u=now();delete i.laden}else{i.kat=kat;i.laden=lad}
+ const kat=f('k'),lad=f('l').trim(),mk=f('mk').trim();const z=Z(i.zid);
+ if(z){z.kat=kat;z.laden=lad;z.marke=mk;delete i.marke;const vc=el.querySelector('[name=v]');if(vc){z.vorrat=vc.checked;if(!vc.checked)i.vorrat=0}z.u=now();delete i.laden}else{i.kat=kat;i.laden=lad;i.marke=mk}
  i.u=now();closeSheet(el);persist()};
 A.itdel=(d,b)=>{closeSheet(b.closest('.ov'));removeItem(item(d.id))};
 A.itfav=(d,b)=>{const i=item(d.id);if(!i.zid)return toast('Nur für Artikel aus dem Katalog');
@@ -536,16 +540,17 @@ function pickZutat(o){
  const el=sheet(o.title||'Zutat wählen',`<input class="srch" placeholder="Suchen oder neu eingeben …" value="${esc(o.q||'')}"><div class="plist"></div>`);
  const inp=el.querySelector('input'),list=el.querySelector('.plist');
  const draw=()=>{const v=inp.value.trim();const res=searchZutaten(v,typ);const exact=v&&ZKEY.get(keyOf(v));
-  list.innerHTML=res.map(z=>`<div class="prow" data-id="${z.id}"><span>${esc(z.name)}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}</span><small>${esc(z.kat)}</small></div>`).join('')+(v&&!exact?`<div class="prow new" data-new="1">＋ „${esc(v)}“ neu anlegen</div>`:'')+(!res.length&&!v?'<div class="empty">Noch keine Einträge</div>':'')};
+  list.innerHTML=(v&&!exact?`<div class="prow new" data-new="1">＋ „${esc(v)}“ neu anlegen</div>`:'')+res.map(z=>`<div class="prow" data-id="${z.id}"><span>${esc(z.name)}${z.marke?` <small style="display:inline">🏷️ ${esc(z.marke)}</small>`:''}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}</span><small>${esc(z.kat)}</small></div>`).join('')+(!res.length&&!v?'<div class="empty">Noch keine Einträge</div>':'')};
  const done=z=>{o.onPick(z);if(!o.keepOpen)closeSheet(el)};
  inp.oninput=draw;draw();
+ inp.onkeydown=e=>{if(e.key!=='Enter')return;e.preventDefault();const v=inp.value.trim();if(!v)return;const ex=ZKEY.get(keyOf(v));if(ex&&ex.typ===typ)done(ex);else{const r=list.querySelector('.prow.new');if(r)r.click()}};
  list.onclick=e=>{const r=e.target.closest('.prow');if(!r)return;if(r.dataset.new)newZutatDialog(inp.value.trim(),typ,z=>{if(o.keepOpen){inp.value='';draw()}done(z)},o.defKat);else done(Z(r.dataset.id))};
  setTimeout(()=>inp.focus(),80)}
 function newZutatDialog(name,typ,cb,defKat){
  const cs=catsOf(typ);const dk=cs.includes(defKat)?defKat:(typ==='markt'?'Obst & Gemüse':cs[0]);
- const el=sheet('Neuer Artikel',`<label class="lb">Name</label><input class="srch" name="n" value="${esc(name)}"><label class="lb">Kategorie</label><select class="srch" name="k">${cs.map(k=>`<option ${k===dk?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Üblicher Einkauf in … (optional)</label><input class="srch" name="l" placeholder="Laden, z. B. Rewe"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option>${u}</option>`).join('')}</select><button class="btn">Anlegen</button>`);
+ const el=sheet('Neuer Artikel',`<label class="lb">Name</label><input class="srch" name="n" value="${esc(name)}"><label class="lb">Kategorie</label><select class="srch" name="k">${cs.map(k=>`<option ${k===dk?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Marke (optional)</label><input class="srch" name="mk" placeholder="z. B. Barilla" maxlength="40"><label class="lb">Üblicher Einkauf in … (optional)</label><input class="srch" name="l" placeholder="Laden, z. B. Rewe"><label class="lb">Übliche Einheit</label><select class="srch" name="e">${UNITS.map(u=>`<option>${u}</option>`).join('')}</select><button class="btn">Anlegen</button>`);
  el.querySelector('.btn').onclick=()=>{const f=n=>el.querySelector(`[name=${n}]`).value.trim();const n=f('n');if(!n)return;
-  let z=ZKEY.get(keyOf(n));if(!z||z.typ!==typ){z={id:uid(),name:n,kat:f('k'),eh:f('e')||'Stück',laden:f('l'),alias:[],typ,u:now()};DB.zutaten.push(z);persist(true)}
+  let z=ZKEY.get(keyOf(n));if(!z||z.typ!==typ){z={id:uid(),name:n,kat:f('k'),eh:f('e')||'Stück',laden:f('l'),marke:f('mk'),alias:[],typ,u:now()};DB.zutaten.push(z);persist(true)}
   closeSheet(el);cb(z)}}
 
 /* =====================  Rezepte  ===================== */
@@ -813,7 +818,7 @@ A.favall=()=>{const fs=live(DB.favoriten).filter(f=>f.typ===FAVT);fs.forEach(fav
 
 /* =====================  Zutaten verwalten  ===================== */
 const zlist=()=>{const q=ZQ;const rs=q?[...searchZutaten(q,'markt'),...searchZutaten(q,'drogerie')]:live(DB.zutaten).sort(byName).slice(0,150);
- return rs.map(z=>`<div class="prow" data-a="zedit" data-id="${z.id}"><span>${esc(z.name)}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}${z.vorrat?' 🏠':''}</span><small>${esc(z.kat)}</small></div>`).join('')||'<div class="empty">Nichts gefunden</div>'};
+ return rs.map(z=>`<div class="prow" data-a="zedit" data-id="${z.id}"><span>${esc(z.name)}${z.marke?` <small style="display:inline">🏷️ ${esc(z.marke)}</small>`:''}${z.laden?` <small style="display:inline">📍 ${esc(z.laden)}</small>`:''}${z.vorrat?' 🏠':''}</span><small>${esc(z.kat)}</small></div>`).join('')||'<div class="empty">Nichts gefunden</div>'};
 function viewZut(){const nd=dupCandidates().length;return`<div class="bar"><button class="ib" data-a="go" data-v="liste">←</button><input class="srch" placeholder="Artikel suchen …" data-in="zsearch" value="${esc(ZQ)}"><button class="ib" data-a="znew">＋</button></div><button class="addbar" data-a="zdups">🔀 Mögliche Doppelte prüfen${nd?' ('+nd+')':''}</button><div id="zlist">${zlist()}</div>`}
 IN.zsearch=v=>{ZQ=v;$('#zlist').innerHTML=zlist()};
 A.znew=()=>{const el=sheet('Neuer Artikel',`<div class="seg"><button data-a="znt" data-t="markt">Einkauf</button><button data-a="znt" data-t="drogerie">Drogerie</button></div>`)};
@@ -822,9 +827,9 @@ const urRow=r=>`<div class="erow ur"><input class="q ura" inputmode="decimal" va
 A.uradd=(d,b)=>{const z=Z(d.id);b.closest('.ov').querySelector('#urs').insertAdjacentHTML('beforeend',urRow({a:'',ua:'g',b:1,ub:b.closest('.ov').querySelector('[name=e]').value||z.eh}))};
 A.urrm=(d,b)=>b.closest('.ur').remove();
 A.zedit=d=>{const z=Z(d.id);
- sheet(z.name,`<label class="lb">Name</label><input class="srch" name="n" value="${esc(z.name)}"><label class="lb">Auch bekannt als (Komma-getrennt, z. B. „gelbe Paprika“)</label><input class="srch" name="a" value="${esc((z.alias||[]).join(', '))}"><label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(z.typ).map(k=>`<option ${k===z.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Wo gibt es das?</label><input class="srch" name="l" value="${esc(z.laden||'')}"><label class="lb">Standardgröße (Einheit, in der dieser Artikel üblicherweise angegeben wird)</label><select class="srch" name="e">${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select><label class="lb">Umrechnung in die Standardgröße</label><div id="urs">${(z.umr||[]).map(urRow).join('')}</div><button class="lnk" data-a="uradd" data-id="${z.id}">＋ Umrechnung hinzufügen</button><p class="mu">Beispiel: 150 g = 1 Stück. Beim Einlesen eines neuen Rezepts rechnet die App damit um und rundet im Zweifel auf (200 g → 2 Stück).</p><label class="chk"><input type="checkbox" name="v" ${z.vorrat?'checked':''}><span>🏠 Vorrat – haben wir normalerweise da (Rezept-Zutaten landen dann unter „Haben wir schon?“)</span></label><button class="btn" data-a="zsave" data-id="${z.id}">Speichern</button><button class="btn sec" data-a="zmerge" data-id="${z.id}">🔀 Mit anderem Artikel zusammenführen</button><button class="btn dng" data-a="zdel" data-id="${z.id}">Löschen</button>`)};
+ sheet(z.name,`<label class="lb">Name</label><input class="srch" name="n" value="${esc(z.name)}"><label class="lb">Auch bekannt als (Komma-getrennt, z. B. „gelbe Paprika“)</label><input class="srch" name="a" value="${esc((z.alias||[]).join(', '))}"><label class="lb">Kategorie</label><select class="srch" name="k">${catsOf(z.typ).map(k=>`<option ${k===z.kat?'selected':''}>${esc(k)}</option>`).join('')}</select><label class="lb">Marke (optional)</label><input class="srch" name="mk" value="${esc(z.marke||'')}" placeholder="z. B. Barilla" maxlength="40"><label class="lb">Wo gibt es das?</label><input class="srch" name="l" value="${esc(z.laden||'')}"><label class="lb">Standardgröße (Einheit, in der dieser Artikel üblicherweise angegeben wird)</label><select class="srch" name="e">${UNITS.map(u=>`<option ${u===z.eh?'selected':''}>${u}</option>`).join('')}</select><label class="lb">Umrechnung in die Standardgröße</label><div id="urs">${(z.umr||[]).map(urRow).join('')}</div><button class="lnk" data-a="uradd" data-id="${z.id}">＋ Umrechnung hinzufügen</button><p class="mu">Beispiel: 150 g = 1 Stück. Beim Einlesen eines neuen Rezepts rechnet die App damit um und rundet im Zweifel auf (200 g → 2 Stück).</p><label class="chk"><input type="checkbox" name="v" ${z.vorrat?'checked':''}><span>🏠 Vorrat – haben wir normalerweise da (Rezept-Zutaten landen dann unter „Haben wir schon?“)</span></label><button class="btn" data-a="zsave" data-id="${z.id}">Speichern</button><button class="btn sec" data-a="zmerge" data-id="${z.id}">🔀 Mit anderem Artikel zusammenführen</button><button class="btn dng" data-a="zdel" data-id="${z.id}">Löschen</button>`)};
 A.zsave=(d,b)=>{const el=b.closest('.ov'),z=Z(d.id),f=n=>el.querySelector(`[name=${n}]`).value.trim();if(!f('n'))return;
- z.name=f('n');z.alias=f('a').split(',').map(s=>s.trim()).filter(Boolean);z.kat=f('k');z.laden=f('l');z.eh=f('e');z.umr=[...el.querySelectorAll('.ur')].map(r=>({a:parseNum(r.querySelector('.ura').value),ua:r.querySelector('.uru').value,b:parseNum(r.querySelector('.urb').value),ub:r.querySelector('.urv').value})).filter(r=>r.a>0&&r.b>0&&fam(r.ua)!==fam(r.ub));z.vorrat=el.querySelector('[name=v]').checked;z.u=now();closeSheet(el);persist()};
+ z.name=f('n');z.alias=f('a').split(',').map(s=>s.trim()).filter(Boolean);z.kat=f('k');z.laden=f('l');z.marke=f('mk');z.eh=f('e');z.umr=[...el.querySelectorAll('.ur')].map(r=>({a:parseNum(r.querySelector('.ura').value),ua:r.querySelector('.uru').value,b:parseNum(r.querySelector('.urb').value),ub:r.querySelector('.urv').value})).filter(r=>r.a>0&&r.b>0&&fam(r.ua)!==fam(r.ub));z.vorrat=el.querySelector('[name=v]').checked;z.u=now();closeSheet(el);persist()};
 const lev=(a,b)=>{const m=[...Array(a.length+1)].map((_,i)=>[i]);for(let j=1;j<=b.length;j++)m[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length]};
 function dupCandidates(){const zs=live(DB.zutaten),ign=LS.get('dup_ign',{}),out=[];const norm=z=>z.name.toLowerCase().replace(/[^a-zäöüß]/g,'');
  for(let i=0;i<zs.length;i++)for(let j=i+1;j<zs.length;j++){const a=zs[i],b=zs[j];if(a.typ!==b.typ||ign[a.id+'|'+b.id]||ign[b.id+'|'+a.id])continue;const x=norm(a),y=norm(b);if(!x||!y)continue;
